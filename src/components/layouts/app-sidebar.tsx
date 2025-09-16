@@ -72,7 +72,11 @@ export function AppSidebar({
                   router.refresh();
                 }}
               >
-                <h4 className="font-bold">better-chatbot</h4>
+                <img
+                  src="/logo.webp"
+                  alt="Aimable"
+                  className="w-[120px] -ml-2 pt-2"
+                />
                 <div
                   className="ml-auto block sm:hidden"
                   onClick={(e) => {
