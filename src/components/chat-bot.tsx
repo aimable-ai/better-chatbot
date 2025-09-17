@@ -17,6 +17,7 @@ import {
   lastAssistantMessageIsCompleteWithToolCalls,
   UIMessage,
 } from "ai";
+import { createAimableFetch } from "lib/ai/aimable-transport";
 
 import { safe } from "ts-safe";
 import { mutate } from "swr";
@@ -134,6 +135,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     id: threadId,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     transport: new DefaultChatTransport({
+      fetch: createAimableFetch(),
       prepareSendMessagesRequest: ({ messages, body, id }) => {
         if (window.location.pathname !== `/chat/${threadId}`) {
           console.log("replace-state");

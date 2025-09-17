@@ -9,6 +9,10 @@ import {
 } from "ai";
 
 import { customModelProvider, isToolCallUnsupportedModel } from "lib/ai/models";
+import {
+  getLastRoutingDetails,
+  clearLastRoutingDetails,
+} from "lib/ai/aimable-provider";
 
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 
@@ -239,6 +243,14 @@ export async function POST(request: Request) {
             messageMetadata: ({ part }) => {
               if (part.type == "finish") {
                 metadata.usage = part.totalUsage;
+                // Capture per-response routing header and persist into this message's metadata
+                try {
+                  const routingDetails = getLastRoutingDetails();
+                  if (routingDetails) {
+                    const parsed = JSON.parse(routingDetails);
+                    metadata.trusted = !!parsed?.use_trusted_model;
+                  }
+                } catch {}
                 return metadata;
               }
             },
@@ -281,9 +293,24 @@ export async function POST(request: Request) {
       originalMessages: messages,
     });
 
-    return createUIMessageStreamResponse({
+    // Get routing details from Aimable proxy if available
+    const routingDetails = getLastRoutingDetails();
+
+    const response = createUIMessageStreamResponse({
       stream,
     });
+
+    // Add routing details header if available
+    if (routingDetails) {
+      response.headers.set("x-routing-details", routingDetails);
+      response.headers.set(
+        "Access-Control-Expose-Headers",
+        "x-routing-details",
+      );
+      clearLastRoutingDetails(); // Clear after use
+    }
+
+    return response;
   } catch (error: any) {
     logger.error(error);
     return Response.json({ message: error.message }, { status: 500 });

@@ -1,5 +1,6 @@
 import { createAzureOpenAICompatible } from "./azure-openai-compatible";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createAimableProvider } from "./aimable-provider";
 import { LanguageModel } from "ai";
 import { isString } from "lib/utils";
 import logger from "logger";
@@ -22,12 +23,6 @@ export function createOpenAICompatibleModels(
   try {
     config.forEach(({ provider, models, baseUrl, apiKey }) => {
       const providerKey = provider;
-      const customProvider = createOpenAICompatible({
-        name: provider,
-        apiKey: apiKey,
-        baseURL: baseUrl!,
-      });
-
       providers[providerKey] = {};
 
       if (provider === "Azure OpenAI") {
@@ -53,8 +48,30 @@ export function createOpenAICompatibleModels(
             }
           },
         );
+      } else if (provider === "Aimable") {
+        // Handle Aimable proxy with custom provider to capture headers
+        const aimableProvider = createAimableProvider({
+          name: provider,
+          apiKey: apiKey,
+          baseURL: baseUrl!,
+        });
+
+        models.forEach(({ apiName, uiName, supportsTools }) => {
+          const model = aimableProvider(apiName);
+          providers[providerKey][uiName] = model;
+
+          if (!supportsTools) {
+            unsupportedModels.add(model);
+          }
+        });
       } else {
         // Standard OpenAI-compatible providers (original implementation)
+        const customProvider = createOpenAICompatible({
+          name: provider,
+          apiKey: apiKey,
+          baseURL: baseUrl!,
+        });
+
         models.forEach(({ apiName, uiName, supportsTools }) => {
           const model = customProvider(apiName);
           providers[providerKey][uiName] = model;

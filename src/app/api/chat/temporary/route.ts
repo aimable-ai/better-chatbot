@@ -7,6 +7,10 @@ import {
   streamText,
 } from "ai";
 import { customModelProvider } from "lib/ai/models";
+import {
+  getLastRoutingDetails,
+  clearLastRoutingDetails,
+} from "lib/ai/aimable-provider";
 import globalLogger from "logger";
 import { buildUserSystemPrompt } from "lib/ai/prompts";
 import { userRepository } from "lib/db/repository";
@@ -39,14 +43,34 @@ export async function POST(request: Request) {
     const userPreferences =
       (await userRepository.getPreferences(session.user.id)) || undefined;
 
-    return streamText({
+    // Get routing details from Aimable proxy if available
+    const routingDetails = getLastRoutingDetails();
+
+    const result = streamText({
       model,
       system: `${buildUserSystemPrompt(session.user, userPreferences)} ${
         instructions ? `\n\n${instructions}` : ""
       }`.trim(),
       messages: convertToModelMessages(messages),
       experimental_transform: smoothStream({ chunking: "word" }),
-    }).toUIMessageStreamResponse();
+      onFinish: () => {
+        // no-op here, handled by header below
+      },
+    });
+
+    const response = result.toUIMessageStreamResponse();
+
+    // Add routing details header if available
+    if (routingDetails) {
+      response.headers.set("x-routing-details", routingDetails);
+      response.headers.set(
+        "Access-Control-Expose-Headers",
+        "x-routing-details",
+      );
+      clearLastRoutingDetails(); // Clear after use
+    }
+
+    return response;
   } catch (error: any) {
     logger.error(error);
     return new Response(error.message || "Oops, an error occured!", {

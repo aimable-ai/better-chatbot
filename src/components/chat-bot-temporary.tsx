@@ -26,6 +26,7 @@ import { ErrorMessage, PreviewMessage } from "./message";
 import { Settings2, X } from "lucide-react";
 import { Separator } from "ui/separator";
 import { DefaultChatTransport, UIMessage } from "ai";
+import { createAimableFetch } from "lib/ai/aimable-transport";
 import { useShallow } from "zustand/shallow";
 import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
 import { useTranslations } from "next-intl";
@@ -71,6 +72,7 @@ export function ChatBotTemporary() {
   } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat/temporary",
+      fetch: createAimableFetch(),
       prepareSendMessagesRequest: ({ messages }) => {
         const temporaryChat = appStore.getState().temporaryChat;
         return {

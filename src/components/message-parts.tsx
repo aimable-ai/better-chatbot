@@ -2,6 +2,10 @@
 
 import { getToolName, ToolUIPart, UIMessage } from "ai";
 import {
+  getLastRoutingDetails,
+  parseRoutingDetails,
+} from "lib/ai/aimable-transport";
+import {
   Check,
   Copy,
   Loader,
@@ -469,14 +473,25 @@ export const AssistMessagePart = memo(function AssistMessagePart({
                             <div className="text-sm font-medium text-foreground">
                               {metadata.chatModel.provider}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {metadata.chatModel.model}
-                              {metadata.toolCount !== undefined &&
-                                metadata.toolCount > 0 && (
-                                  <span className="ml-2">
-                                    • {metadata.toolCount} tools
-                                  </span>
-                                )}
+                            <div className="text-xs text-muted-foreground flex items-center justify-between">
+                              <div>
+                                {metadata.chatModel.model}
+                                {metadata.toolCount !== undefined &&
+                                  metadata.toolCount > 0 && (
+                                    <span className="ml-2">
+                                      • {metadata.toolCount} tools
+                                    </span>
+                                  )}
+                              </div>
+                              {metadata?.trusted === true ? (
+                                <span className="text-green-600 font-semibold w-[200px] relative right-[-30px] top-[-26px]">
+                                  TRUSTED
+                                </span>
+                              ) : metadata?.trusted === false ? (
+                                <span className="font-semibold w-[200px] relative right-[20px] top-[-26px]">
+                                  GENERAL MODEL
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                         </div>

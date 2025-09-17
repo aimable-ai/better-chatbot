@@ -11,6 +11,7 @@ import {
   createOpenAICompatibleModels,
   openaiCompatibleModelsSafeParse,
 } from "./create-openai-compatiable";
+import { createAimableProvider } from "./aimable-provider";
 import { ChatModel } from "app-types/chat";
 
 const ollama = createOllama({
