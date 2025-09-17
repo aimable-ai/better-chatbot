@@ -7,6 +7,7 @@ import { SidebarGroupContent, SidebarMenu, SidebarMenuItem } from "ui/sidebar";
 import { SidebarGroup } from "ui/sidebar";
 import {
   ArrowUpRightIcon,
+  Bot,
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
@@ -35,8 +36,8 @@ export function AppSidebarAgents() {
   const mounted = useMounted();
   const t = useTranslations();
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
-  const { bookmarkedAgents, myAgents, isLoading, sharedAgents } = useAgents({
+  const [expanded, _setExpanded] = useState(false);
+  const { bookmarkedAgents, myAgents, isLoading } = useAgents({
     limit: 50,
   }); // Increase limit since we're not artificially limiting display
 
@@ -98,9 +99,10 @@ export function AppSidebarAgents() {
       <SidebarGroupContent className="group-data-[collapsible=icon]:hidden group/agents">
         <SidebarMenu className="group/agents" data-testid="agents-sidebar-menu">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="font-semibold">
+            <SidebarMenuButton asChild className="font-semibol -mt-4">
               <Link href="/agents" data-testid="agents-link">
-                {t("Layout.agents")}
+                <Bot className="size-4" />
+                <span className="font-semibold">{t("Layout.agents")}</span>
               </Link>
             </SidebarMenuButton>
             <SidebarMenuAction
@@ -124,25 +126,6 @@ export function AppSidebarAgents() {
                 (_, index) => mounted && <SidebarMenuSkeleton key={index} />,
               )}
             </SidebarMenuItem>
-          ) : agents.length == 0 ? (
-            <div className="px-2 mt-1">
-              <Link
-                href={"/agent/new"}
-                className="bg-input/40 py-8 px-4 hover:bg-input/100 rounded-lg cursor-pointer flex justify-between items-center text-xs overflow-hidden"
-              >
-                <div className="gap-1 z-10">
-                  <div className="flex items-center mb-4 gap-1">
-                    <p className="font-semibold">{t("Layout.createAgent")}</p>
-                    <ArrowUpRightIcon className="size-3" />
-                  </div>
-                  <p className="text-muted-foreground">
-                    {sharedAgents.length > 0
-                      ? t("Layout.createYourOwnAgentOrSelectShared")
-                      : t("Layout.createYourOwnAgent")}
-                  </p>
-                </div>
-              </Link>
-            </div>
           ) : (
             <div className="flex flex-col">
               <div className="relative">
@@ -227,31 +210,6 @@ export function AppSidebarAgents() {
                   )}
                 </div>
               </div>
-
-              {/* Show More/Less Button */}
-              {agents.length > DISPLAY_LIMIT && (
-                <SidebarMenu className="group/showmore">
-                  <SidebarMenuItem className="px-2 cursor-pointer">
-                    <SidebarMenuButton
-                      onClick={() => setExpanded(!expanded)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <div className="flex items-center gap-1">
-                        <p className="text-xs">
-                          {expanded
-                            ? t("Common.showLess")
-                            : t("Common.showMore")}
-                        </p>
-                        {expanded ? (
-                          <ChevronUp className="size-3.5" />
-                        ) : (
-                          <ChevronDown className="size-3.5" />
-                        )}
-                      </div>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              )}
             </div>
           )}
         </SidebarMenu>

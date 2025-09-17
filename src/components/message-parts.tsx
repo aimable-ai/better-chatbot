@@ -441,7 +441,7 @@ export const AssistMessagePart = memo(function AssistMessagePart({
                                 src={agent.icon?.value || EMOJI_DATA[0]}
                               />
                               <AvatarFallback className="bg-transparent text-xs">
-                                {agent.name[0]}
+                                {agent.name}
                               </AvatarFallback>
                             </Avatar>
                           </div>
@@ -931,9 +931,7 @@ export const ToolMessagePart = memo(
                           .workflowIcon?.value
                       }
                     />
-                    <AvatarFallback>
-                      {toolName.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
+                    <AvatarFallback>{toolName}</AvatarFallback>
                   </Avatar>
                 ) : (
                   <HammerIcon className="size-3.5" />

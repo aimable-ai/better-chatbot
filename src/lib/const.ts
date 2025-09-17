@@ -58,20 +58,23 @@ export const OAUTH_REQUIRED_CODE = "OAUTH_REQUIRED";
 export const SUPPORTED_LOCALES = [
   {
     code: "en",
-    name: "English 🇺🇸",
+    name: "English 🇬🇧  🇺🇸",
   },
   {
-    code: "ko",
-    name: "Korean 🇰🇷",
+    code: "nl",
+    name: "Dutch 🇳🇱  🇧🇪",
   },
-
+  {
+    code: "fr",
+    name: "French 🇫🇷  🇧🇪",
+  },
   {
     code: "es",
     name: "Spanish 🇪🇸",
   },
   {
-    code: "fr",
-    name: "French 🇫🇷",
+    code: "ko",
+    name: "Korean 🇰🇷",
   },
   {
     code: "ja",

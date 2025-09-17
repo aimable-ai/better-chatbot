@@ -25,6 +25,8 @@ import {
   Sun,
   MoonStar,
   ChevronRight,
+  Info,
+  HelpCircle,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { appStore } from "@/app/store";
@@ -35,8 +37,6 @@ import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { getLocaleAction } from "@/i18n/get-locale";
 import { useCallback } from "react";
-import { GithubIcon } from "ui/github-icon";
-import { DiscordIcon } from "ui/discord-icon";
 import { useThemeStyle } from "@/hooks/use-theme-style";
 import { Session, User } from "better-auth";
 
@@ -81,10 +81,10 @@ export function AppSidebarUser({
               <Avatar className="rounded-full size-8 border">
                 <AvatarImage
                   className="object-cover"
-                  src={user?.image || "/pf.png"}
+                  src={user?.image || undefined}
                   alt={user?.name || ""}
                 />
-                <AvatarFallback>{user?.name?.slice(0, 1) || ""}</AvatarFallback>
+                <AvatarFallback>{user?.name || ""}</AvatarFallback>
               </Avatar>
               <span className="truncate">{user?.email}</span>
               <ChevronsUpDown className="ml-auto" />
@@ -99,11 +99,11 @@ export function AppSidebarUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-full">
                   <AvatarImage
-                    src={user?.image || "/pf.png"}
+                    src={user?.image || undefined}
                     alt={user?.name || ""}
                   />
                   <AvatarFallback className="rounded-lg">
-                    {user?.name?.slice(0, 1) || ""}
+                    {user?.name || ""}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -135,22 +135,19 @@ export function AppSidebarUser({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                window.open(
-                  "https://github.com/cgoinglove/better-chatbot/issues/new",
-                  "_blank",
-                );
+                window.open("https://www.aimable.ai/contact", "_blank");
               }}
             >
-              <GithubIcon className="size-4 fill-foreground" />
+              <HelpCircle className="size-4" />
               <span>{t("reportAnIssue")}</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                window.open("https://discord.gg/gCRu69Upnp", "_blank");
+                window.open("https://www.aimable.ai", "_blank");
               }}
             >
-              <DiscordIcon className="size-4 fill-foreground" />
-              <span>{t("joinCommunity")}</span>
+              <Info className="size-4" />
+              <span>{t("aboutAimable")}</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="cursor-pointer">

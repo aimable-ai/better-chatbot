@@ -290,7 +290,7 @@ export function ChatMentionInputSuggestion({
               <AvatarImage
                 src={agent.icon?.value || EMOJI_DATA[i % EMOJI_DATA.length]}
               />
-              <AvatarFallback>{agent.name.slice(0, 1)}</AvatarFallback>
+              <AvatarFallback>{agent.name}</AvatarFallback>
             </Avatar>
           ),
           suffix: selectedIds?.includes(id) && (
@@ -333,7 +333,7 @@ export function ChatMentionInputSuggestion({
               className="size-3.5 ring-[1px] ring-input rounded-full"
             >
               <AvatarImage src={workflow.icon?.value} />
-              <AvatarFallback>{workflow.name.slice(0, 1)}</AvatarFallback>
+              <AvatarFallback>{workflow.name}</AvatarFallback>
             </Avatar>
           ),
           suffix: selectedIds?.includes(id) && (

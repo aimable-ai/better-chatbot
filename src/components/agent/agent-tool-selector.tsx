@@ -93,7 +93,7 @@ export function AgentToolSelector({
               className="size-3 ring-[1px] ring-input rounded-full"
             >
               <AvatarImage src={m.icon?.value} />
-              <AvatarFallback>{m.name.slice(0, 1)}</AvatarFallback>
+              <AvatarFallback>{m.name}</AvatarFallback>
             </Avatar>
           ) : (
             <HammerIcon className="size-3" />

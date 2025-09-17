@@ -161,7 +161,7 @@ function PureWebSearchToolInvocation({ part }: WebSearchToolInvocationProps) {
                           <Avatar className="size-3 rounded-full">
                             <AvatarImage src={result.favicon} />
                             <AvatarFallback>
-                              {result.title?.slice(0, 1).toUpperCase() || "?"}
+                              {result.title || "?"}
                             </AvatarFallback>
                           </Avatar>
                         </div>
@@ -175,7 +175,7 @@ function PureWebSearchToolInvocation({ part }: WebSearchToolInvocationProps) {
                           <Avatar className="size-6 rounded-full">
                             <AvatarImage src={result.favicon} />
                             <AvatarFallback>
-                              {result.title?.slice(0, 1).toUpperCase() || "?"}
+                              {result.title || "?"}
                             </AvatarFallback>
                           </Avatar>
                         </div>

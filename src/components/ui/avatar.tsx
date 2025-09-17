@@ -4,6 +4,7 @@ import type * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
 import { cn } from "lib/utils";
+import { generateInitials, generateAvatarColor } from "lib/utils/initials";
 
 function Avatar({
   className,
@@ -36,17 +37,26 @@ function AvatarImage({
 
 function AvatarFallback({
   className,
+  children,
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  // If children is provided, use it as the name for initials generation
+  const name = typeof children === "string" ? children : "";
+  const initials = generateInitials(name);
+  const backgroundColor = generateAvatarColor(initials);
+
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
+        "flex size-full items-center justify-center rounded-full font-medium text-white",
         className,
       )}
+      style={{ backgroundColor }}
       {...props}
-    />
+    >
+      {initials}
+    </AvatarPrimitive.Fallback>
   );
 }
 

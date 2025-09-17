@@ -261,9 +261,7 @@ export default function PromptInput({
                               EMOJI_DATA[i % EMOJI_DATA.length]
                             }
                           />
-                          <AvatarFallback>
-                            {mention.name.slice(0, 1)}
-                          </AvatarFallback>
+                          <AvatarFallback>{mention.name}</AvatarFallback>
                         </Avatar>
                       ) : (
                         <Button className="size-6 flex items-center justify-center ring ring-border rounded-full flex-shrink-0 p-0.5">

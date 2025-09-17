@@ -485,9 +485,7 @@ function WorkflowToolSelector({
                       >
                         <Avatar className="size-3">
                           <AvatarImage src={workflow.icon?.value} />
-                          <AvatarFallback>
-                            {workflow.name.slice(0, 1)}
-                          </AvatarFallback>
+                          <AvatarFallback>{workflow.name}</AvatarFallback>
                         </Avatar>
                       </div>
                     ) : null}
@@ -516,9 +514,7 @@ function WorkflowToolSelector({
                       >
                         <Avatar className="size-3">
                           <AvatarImage src={workflow.icon?.value} />
-                          <AvatarFallback>
-                            {workflow.name.slice(0, 1)}
-                          </AvatarFallback>
+                          <AvatarFallback>{workflow.name}</AvatarFallback>
                         </Avatar>
                       </div>
                     ) : null}
@@ -962,7 +958,7 @@ function AgentSelector({
                   >
                     <Avatar className="size-3">
                       <AvatarImage src={agent.icon?.value} />
-                      <AvatarFallback>{agent.name.slice(0, 1)}</AvatarFallback>
+                      <AvatarFallback>{agent.name}</AvatarFallback>
                     </Avatar>
                   </div>
                 ) : null}
@@ -989,7 +985,7 @@ function AgentSelector({
                   >
                     <Avatar className="size-3">
                       <AvatarImage src={agent.icon?.value} />
-                      <AvatarFallback>{agent.name.slice(0, 1)}</AvatarFallback>
+                      <AvatarFallback>{agent.name}</AvatarFallback>
                     </Avatar>
                   </div>
                 ) : null}
@@ -1001,7 +997,7 @@ function AgentSelector({
                         <Avatar className="size-4 ml-2 shrink-0">
                           <AvatarImage src={agent.userAvatar} />
                           <AvatarFallback className="text-xs text-muted-foreground font-medium">
-                            {agent.userName[0]?.toUpperCase()}
+                            {agent.userName}
                           </AvatarFallback>
                         </Avatar>
                       </TooltipTrigger>
