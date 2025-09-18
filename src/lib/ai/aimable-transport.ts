@@ -17,6 +17,18 @@ export function createAimableFetch() {
       (window as any).__lastRoutingDetails = routingDetails;
     }
 
+    // Capture altered input header
+    const alteredInput = response.headers.get("x-altered-input");
+    if (alteredInput) {
+      (window as any).__lastAlteredInput = alteredInput;
+      try {
+        console.log(
+          "[AimableProxy][CAPTURED][BROWSER] x-altered-input:",
+          alteredInput,
+        );
+      } catch {}
+    }
+
     // Capture guardrail names from streaming and non-streaming responses in the browser
     try {
       const contentType = response.headers.get("content-type") || "";
@@ -111,4 +123,14 @@ export function parseRoutingDetails(routingDetails: string | null): {
     console.error("Failed to parse routing details:", error);
     return null;
   }
+}
+
+/**
+ * Altered input accessors (frontend)
+ */
+export function getLastAlteredInput(): string | null {
+  return (window as any).__lastAlteredInput || null;
+}
+export function clearLastAlteredInput(): void {
+  delete (window as any).__lastAlteredInput;
 }

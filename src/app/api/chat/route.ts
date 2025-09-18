@@ -12,6 +12,8 @@ import { customModelProvider, isToolCallUnsupportedModel } from "lib/ai/models";
 import {
   getLastRoutingDetails,
   clearLastRoutingDetails,
+  getLastAlteredInput,
+  clearLastAlteredInput,
   getLastGuardrailNames,
   clearLastGuardrailNames,
   getLastGuardrails,
@@ -326,8 +328,9 @@ export async function POST(request: Request) {
       originalMessages: messages,
     });
 
-    // Get routing details from Aimable proxy if available
+    // Get routing and altered-input details from Aimable proxy if available
     const routingDetails = getLastRoutingDetails();
+    const alteredInput = getLastAlteredInput();
     const guardrailNamesJson = getLastGuardrailNames();
 
     const response = createUIMessageStreamResponse({
@@ -336,12 +339,44 @@ export async function POST(request: Request) {
 
     // Add routing details header if available
     if (routingDetails) {
+      try {
+        console.log(
+          "[Chat API][HEADERS] attaching x-routing-details:",
+          routingDetails,
+        );
+      } catch {}
       response.headers.set("x-routing-details", routingDetails);
       response.headers.set(
         "Access-Control-Expose-Headers",
-        "x-routing-details",
+        alteredInput
+          ? "x-routing-details, x-altered-input"
+          : "x-routing-details",
       );
       clearLastRoutingDetails(); // Clear after use
+    }
+
+    // Add altered input header if available
+    if (alteredInput) {
+      try {
+        console.log(
+          "[Chat API][HEADERS] attaching x-altered-input:",
+          alteredInput,
+        );
+      } catch {}
+      response.headers.set("x-altered-input", alteredInput);
+      // ensure exposed even if routingDetails branch didn't run
+      const existingExpose = response.headers.get(
+        "Access-Control-Expose-Headers",
+      );
+      if (!existingExpose || !/x-altered-input/.test(existingExpose)) {
+        response.headers.set(
+          "Access-Control-Expose-Headers",
+          existingExpose
+            ? `${existingExpose}, x-altered-input`
+            : "x-altered-input",
+        );
+      }
+      clearLastAlteredInput();
     }
 
     // Clear guardrail names after attaching to metadata

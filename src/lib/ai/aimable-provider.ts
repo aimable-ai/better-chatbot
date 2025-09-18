@@ -99,6 +99,16 @@ export function createAimableProvider({
         if (routingDetailsEarly) {
           (globalThis as any).__lastRoutingDetails = routingDetailsEarly;
         }
+        const alteredInputEarly = response.headers.get("x-altered-input");
+        if (alteredInputEarly) {
+          (globalThis as any).__lastAlteredInput = alteredInputEarly;
+          try {
+            console.log(
+              "[AimableProxy][CAPTURED][SERVER] x-altered-input:",
+              alteredInputEarly,
+            );
+          } catch {}
+        }
       } catch {}
 
       // If streaming, Aimable may emit auxiliary events (e.g., {"event":"searching_uploaded_files"}).
@@ -253,6 +263,16 @@ export function getLastRoutingDetails(): string | null {
  */
 export function clearLastRoutingDetails(): void {
   delete (globalThis as any).__lastRoutingDetails;
+}
+
+/**
+ * Altered input accessors
+ */
+export function getLastAlteredInput(): string | null {
+  return (globalThis as any).__lastAlteredInput || null;
+}
+export function clearLastAlteredInput(): void {
+  delete (globalThis as any).__lastAlteredInput;
 }
 
 /**

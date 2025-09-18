@@ -17,7 +17,11 @@ import {
   lastAssistantMessageIsCompleteWithToolCalls,
   UIMessage,
 } from "ai";
-import { createAimableFetch } from "lib/ai/aimable-transport";
+import {
+  createAimableFetch,
+  getLastAlteredInput,
+  clearLastAlteredInput,
+} from "lib/ai/aimable-transport";
 
 import { safe } from "ts-safe";
 import { mutate } from "swr";
@@ -368,6 +372,29 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       handleFocus();
     }
   }, [input]);
+
+  // If the proxy returned an altered input for the latest user message, reflect it in the UI bubble
+  useEffect(() => {
+    if (!messages.length) return;
+    const last = messages.at(-1);
+    if (last?.role !== "assistant") {
+      const altered = getLastAlteredInput();
+      if (altered) {
+        setMessages((prev) => {
+          const copy = [...prev];
+          const idx = copy.length - 1;
+          if (idx >= 0 && copy[idx].role === "user") {
+            const parts = copy[idx].parts.map((p) =>
+              p.type === "text" ? { ...p, text: altered } : p,
+            );
+            copy[idx] = { ...copy[idx], parts } as any;
+          }
+          return copy;
+        });
+        clearLastAlteredInput();
+      }
+    }
+  }, [messages]);
 
   return (
     <>

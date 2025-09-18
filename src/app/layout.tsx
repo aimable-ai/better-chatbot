@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: "better-chatbot",
   description:
     "Better Chatbot is a chatbot that uses the Tools to answer questions.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 // const themes = BASE_THEMES.flatMap((t) => [t, `${t}-dark`]);

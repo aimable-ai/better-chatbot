@@ -10,6 +10,8 @@ import { customModelProvider } from "lib/ai/models";
 import {
   getLastRoutingDetails,
   clearLastRoutingDetails,
+  getLastAlteredInput,
+  clearLastAlteredInput,
 } from "lib/ai/aimable-provider";
 import { setAimableOriginals } from "lib/ai/utils/aimable-files";
 import globalLogger from "logger";
@@ -44,8 +46,9 @@ export async function POST(request: Request) {
     const userPreferences =
       (await userRepository.getPreferences(session.user.id)) || undefined;
 
-    // Get routing details from Aimable proxy if available
+    // Get routing and altered-input details from Aimable proxy if available
     const routingDetails = getLastRoutingDetails();
+    const alteredInput = getLastAlteredInput?.() || null;
 
     // Capture originals for Aimable provider to build proper payload
     setAimableOriginals({ messages });
@@ -66,12 +69,43 @@ export async function POST(request: Request) {
 
     // Add routing details header if available
     if (routingDetails) {
+      try {
+        console.log(
+          "[Temp Chat API][HEADERS] attaching x-routing-details:",
+          routingDetails,
+        );
+      } catch {}
       response.headers.set("x-routing-details", routingDetails);
       response.headers.set(
         "Access-Control-Expose-Headers",
-        "x-routing-details",
+        alteredInput
+          ? "x-routing-details, x-altered-input"
+          : "x-routing-details",
       );
       clearLastRoutingDetails(); // Clear after use
+    }
+
+    // Add altered input header if available
+    if (alteredInput) {
+      try {
+        console.log(
+          "[Temp Chat API][HEADERS] attaching x-altered-input:",
+          alteredInput,
+        );
+      } catch {}
+      response.headers.set("x-altered-input", alteredInput);
+      const existingExpose = response.headers.get(
+        "Access-Control-Expose-Headers",
+      );
+      if (!existingExpose || !/x-altered-input/.test(existingExpose)) {
+        response.headers.set(
+          "Access-Control-Expose-Headers",
+          existingExpose
+            ? `${existingExpose}, x-altered-input`
+            : "x-altered-input",
+        );
+      }
+      clearLastAlteredInput?.();
     }
 
     return response;
