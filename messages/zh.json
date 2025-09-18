@@ -69,7 +69,7 @@
       "createAccount": "创建账户"
     },
     "Intro": {
-      "description": "欢迎来到 MCP 聊天机器人。登录以体验我们的 AI 驱动的对话工具。"
+      "description": "欢迎来到 Aimable 聊天机器人。登录以体验我们的 AI 驱动的对话工具。"
     }
   },
   "Chat": {
@@ -140,7 +140,6 @@
     },
     "Thread": {
       "chat": "聊天",
-
       "renameChat": "重命名",
       "deleteChat": "删除聊天",
       "deleteUnarchivedChats": "删除所有未归档的聊天",
@@ -155,7 +154,6 @@
       "threadUpdated": "线程已更新",
       "areYouSureYouWantToDeleteThisChatThread": "您确定要删除此聊天线程吗？"
     },
-
     "ChatPreferences": {
       "title": "聊天偏好",
       "whatShouldWeCallYou": "我们应该怎么称呼您？",
@@ -222,7 +220,6 @@
     "theme": "主题",
     "signOut": "登出",
     "language": "语言",
-
     "showAllChats": "查看所有聊天",
     "showLessChats": "显示更少",
     "reportAnIssue": "报告问题",

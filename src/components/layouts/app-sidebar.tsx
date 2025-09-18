@@ -16,6 +16,7 @@ import { useEffect } from "react";
 import { AppSidebarMenus } from "./app-sidebar-menus";
 import { AppSidebarAgents } from "./app-sidebar-agents";
 import { AppSidebarThreads } from "./app-sidebar-threads";
+import { ThemeLogo } from "ui/theme-logo";
 
 import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
 import { AppSidebarUser } from "./app-sidebar-user";
@@ -72,11 +73,7 @@ export function AppSidebar({
                   router.refresh();
                 }}
               >
-                <img
-                  src="/logo.webp"
-                  alt="Aimable"
-                  className="w-[120px] -ml-2 pt-2"
-                />
+                <ThemeLogo alt="Aimable" className="w-[120px] -ml-2 pt-2" />
                 <div
                   className="ml-auto block sm:hidden"
                   onClick={(e) => {
