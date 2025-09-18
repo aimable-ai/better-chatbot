@@ -18,9 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "better-chatbot",
+  title: "Aimable Chat",
   description:
-    "Better Chatbot is a chatbot that uses the Tools to answer questions.",
+    "Aimable Chat is a chatbot that uses the Tools to answer questions.",
   icons: {
     icon: "/favicon.ico",
   },
