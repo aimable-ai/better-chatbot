@@ -6,7 +6,6 @@ import { SidebarMenuButton, SidebarMenuSkeleton } from "ui/sidebar";
 import { SidebarGroupContent, SidebarMenu, SidebarMenuItem } from "ui/sidebar";
 import { SidebarGroup } from "ui/sidebar";
 import {
-  ArrowUpRightIcon,
   Bot,
   ChevronDown,
   ChevronUp,
