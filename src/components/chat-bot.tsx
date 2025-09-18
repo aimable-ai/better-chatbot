@@ -17,11 +17,7 @@ import {
   lastAssistantMessageIsCompleteWithToolCalls,
   UIMessage,
 } from "ai";
-import {
-  createAimableFetch,
-  getLastAlteredInput,
-  clearLastAlteredInput,
-} from "lib/ai/aimable-transport";
+import { createAimableFetch } from "lib/ai/aimable-transport";
 
 import { safe } from "ts-safe";
 import { mutate } from "swr";
