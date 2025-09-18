@@ -11,6 +11,7 @@ import {
   getLastRoutingDetails,
   clearLastRoutingDetails,
 } from "lib/ai/aimable-provider";
+import { setAimableOriginals } from "lib/ai/utils/aimable-files";
 import globalLogger from "logger";
 import { buildUserSystemPrompt } from "lib/ai/prompts";
 import { userRepository } from "lib/db/repository";
@@ -45,6 +46,9 @@ export async function POST(request: Request) {
 
     // Get routing details from Aimable proxy if available
     const routingDetails = getLastRoutingDetails();
+
+    // Capture originals for Aimable provider to build proper payload
+    setAimableOriginals({ messages });
 
     const result = streamText({
       model,

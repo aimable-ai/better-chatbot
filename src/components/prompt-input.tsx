@@ -8,9 +8,8 @@ import {
   Square,
   XIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "ui/button";
-import { notImplementedToast } from "ui/shared-toast";
 import { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 import { SelectModel } from "./select-model";
 import { appStore } from "@/app/store";
@@ -51,6 +50,26 @@ interface PromptInputProps {
   threadId?: string;
   disabledMention?: boolean;
   onFocus?: () => void;
+  onUploadedFilesChange?: (
+    files: Array<{
+      id: string;
+      name: string;
+      type: string;
+      progress: number;
+      status: "uploading" | "done" | "error";
+      sourceId?: string;
+    }>,
+  ) => void;
+  onSubmitUploadedFiles?: (
+    files: Array<{
+      id: string;
+      name: string;
+      type: string;
+      progress: number;
+      status: "uploading" | "done" | "error";
+      sourceId?: string;
+    }>,
+  ) => void;
 }
 
 const ChatMentionInput = dynamic(() => import("./chat-mention-input"), {
@@ -74,8 +93,29 @@ export default function PromptInput({
   voiceDisabled,
   threadId,
   disabledMention,
+  onUploadedFilesChange,
+  onSubmitUploadedFiles,
 }: PromptInputProps) {
   const t = useTranslations("Chat");
+
+  const [uploadedFiles, setUploadedFiles] = useState<
+    Array<{
+      id: string;
+      name: string;
+      type: string;
+      progress: number; // 0-100
+      status: "uploading" | "done" | "error";
+      sourceId?: string; // Added sourceId for file operations
+    }>
+  >([]);
+
+  useEffect(() => {
+    onUploadedFilesChange?.(uploadedFiles);
+  }, [uploadedFiles, onUploadedFilesChange]);
+
+  const hasUploading = useMemo(() => {
+    return uploadedFiles.some((f) => f.status === "uploading");
+  }, [uploadedFiles]);
 
   const [globalModel, threadMentions, appStoreMutate] = appStore(
     useShallow((state) => [
@@ -204,6 +244,34 @@ export default function PromptInput({
     const userMessage = input?.trim() || "";
     if (userMessage.length === 0) return;
     setInput("");
+
+    // Prepare attachments from uploaded files
+    const attachments = uploadedFiles
+      .filter((f) => f.status === "done" && f.sourceId)
+      .map((f) => ({
+        filename: f.name,
+        sourceId: f.sourceId!,
+      }));
+
+    // Prepare uploaded_files array with sourceIds
+    const uploadedFilesList = uploadedFiles
+      .filter((f) => f.status === "done" && f.sourceId)
+      .map((f) => f.sourceId!);
+
+    const clientFiles = uploadedFiles
+      .filter((f) => f.status === "done" && f.sourceId)
+      .map((f) => ({
+        id: f.id,
+        name: f.name,
+        type: f.type,
+        sourceId: f.sourceId!,
+      }));
+
+    console.log("📤 Sending message with files:");
+    console.log("Attachments:", attachments);
+    console.log("Uploaded Files:", uploadedFilesList);
+    console.log("Message text:", userMessage);
+
     sendMessage({
       role: "user",
       parts: [
@@ -212,7 +280,25 @@ export default function PromptInput({
           text: userMessage,
         },
       ],
+      metadata: {
+        attachments: attachments.length > 0 ? attachments : undefined,
+        uploaded_files:
+          uploadedFilesList.length > 0 ? uploadedFilesList : undefined,
+        client_files: clientFiles.length > 0 ? clientFiles : undefined,
+      },
     });
+    // Notify parent with the files that were included in this submit
+    try {
+      const submitted = uploadedFiles.filter((f) => f.status === "done");
+      if (submitted.length > 0) {
+        onSubmitUploadedFiles?.(submitted);
+      } else {
+        onSubmitUploadedFiles?.([]);
+      }
+    } catch {}
+
+    // Clear uploaded files after sending
+    setUploadedFiles([]);
   };
 
   // Handle ESC key to clear mentions
@@ -302,6 +388,91 @@ export default function PromptInput({
                 })}
               </div>
             )}
+            {uploadedFiles.length > 0 && (
+              <div className="px-5 pt-2">
+                <div className="flex flex-wrap gap-2">
+                  {uploadedFiles.map((file, _idx) => (
+                    <div
+                      key={file.id}
+                      className="group relative flex items-center gap-2 pl-3 pr-2 py-2 rounded-md bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                      title={file.name}
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-500 text-white border border-blue-500 shadow-sm">
+                        <svg
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          fill="currentColor"
+                          className="remixicon text-white"
+                        >
+                          <path d="M21 9V20.9925C21 21.5511 20.5552 22 20.0066 22H3.9934C3.44495 22 3 21.556 3 21.0082V2.9918C3 2.45531 3.44694 2 3.99826 2H14V8C14 8.55228 14.4477 9 15 9H21ZM21 7H16V2.00318L21 7ZM8 7V9H11V7H8ZM8 11V13H16V11H8ZM8 15V17H16V15H8Z"></path>
+                        </svg>
+                      </div>
+                      <div className="flex flex-col leading-tight pr-1 w-32">
+                        <span className="text-xs font-medium text-neutral-800 truncate">
+                          {file.name}
+                        </span>
+                        <span className="text-[10px] text-neutral-500">
+                          {file.type || "file"}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Remove file"
+                        className="ml-1 text-neutral-500 hover:text-neutral-900 text-xl leading-none px-1 rounded transition-colors"
+                        onClick={async () => {
+                          try {
+                            // Call local DELETE endpoint with sourceId if available
+                            if (file.sourceId) {
+                              const response = await fetch("/api/files", {
+                                method: "DELETE",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  source_ids: [file.sourceId],
+                                }),
+                              });
+
+                              if (!response.ok) {
+                                console.error(
+                                  "Delete failed",
+                                  await response.text(),
+                                );
+                              }
+                            }
+                          } catch (error) {
+                            console.error("Error deleting file:", error);
+                          } finally {
+                            // Remove from UI regardless of API success/failure
+                            setUploadedFiles((prev) =>
+                              prev.filter((f) => f.id !== file.id),
+                            );
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                      <div className="absolute left-0 bottom-0 h-0.5 w-full bg-neutral-100">
+                        <div
+                          className={`h-full ${
+                            file.status === "error"
+                              ? "bg-red-500"
+                              : file.status === "done"
+                                ? "bg-green-500"
+                                : "bg-blue-500"
+                          } transition-[width] duration-200`}
+                          style={{
+                            width: `${Math.max(0, Math.min(100, file.progress))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex flex-col gap-3.5 px-5 pt-2 pb-4">
               <div className="relative min-h-[2rem]">
                 <ChatMentionInput
@@ -320,7 +491,117 @@ export default function PromptInput({
                   variant={"ghost"}
                   size={"sm"}
                   className="rounded-full hover:bg-input! p-2!"
-                  onClick={notImplementedToast}
+                  onClick={async () => {
+                    try {
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.multiple = true;
+
+                      input.onchange = async () => {
+                        const files = input.files;
+                        if (!files || files.length === 0) return;
+
+                        // Add to preview list and kick off uploads with progress
+                        const filesArray = Array.from(files);
+                        const newItems = filesArray.map((f) => ({
+                          id: `${f.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                          name: f.name,
+                          type:
+                            f.type?.split("/").pop() ||
+                            f.name.split(".").pop() ||
+                            "file",
+                          progress: 0,
+                          status: "uploading" as const,
+                        }));
+                        setUploadedFiles((prev) => [...prev, ...newItems]);
+
+                        // For reliable upload progress, use XMLHttpRequest per file
+                        filesArray.forEach((file, i) => {
+                          const item = newItems[i];
+                          const formData = new FormData();
+                          formData.append("files", file);
+
+                          const xhr = new XMLHttpRequest();
+                          xhr.open("POST", "/api/files", true);
+
+                          xhr.upload.onprogress = (evt) => {
+                            if (!evt.lengthComputable) return;
+                            const percent = Math.round(
+                              (evt.loaded / evt.total) * 100,
+                            );
+                            setUploadedFiles((prev) =>
+                              prev.map((f) =>
+                                f.id === item.id
+                                  ? { ...f, progress: percent }
+                                  : f,
+                              ),
+                            );
+                          };
+
+                          xhr.onload = () => {
+                            const ok = xhr.status >= 200 && xhr.status < 300;
+                            if (ok) {
+                              try {
+                                const response = JSON.parse(xhr.responseText);
+                                const filesProcessed =
+                                  response.files_processed || {};
+                                const sourceId = filesProcessed[file.name];
+
+                                setUploadedFiles((prev) =>
+                                  prev.map((f) =>
+                                    f.id === item.id
+                                      ? {
+                                          ...f,
+                                          progress: 100,
+                                          status: "done",
+                                          sourceId: sourceId,
+                                        }
+                                      : f,
+                                  ),
+                                );
+                              } catch (error) {
+                                console.error(
+                                  "Error parsing upload response:",
+                                  error,
+                                );
+                                setUploadedFiles((prev) =>
+                                  prev.map((f) =>
+                                    f.id === item.id
+                                      ? { ...f, status: "error" }
+                                      : f,
+                                  ),
+                                );
+                              }
+                            } else {
+                              setUploadedFiles((prev) =>
+                                prev.map((f) =>
+                                  f.id === item.id
+                                    ? { ...f, status: "error" }
+                                    : f,
+                                ),
+                              );
+                            }
+                          };
+
+                          xhr.onerror = () => {
+                            setUploadedFiles((prev) =>
+                              prev.map((f) =>
+                                f.id === item.id
+                                  ? { ...f, status: "error" }
+                                  : f,
+                              ),
+                            );
+                          };
+
+                          xhr.send(formData);
+                        });
+                      };
+
+                      input.click();
+                    } catch (error) {
+                      console.error(error);
+                    }
+                  }}
                 >
                   <PlusIcon />
                 </Button>
@@ -396,14 +677,20 @@ export default function PromptInput({
                   </Tooltip>
                 ) : (
                   <div
+                    role="button"
+                    aria-disabled={hasUploading}
                     onClick={() => {
                       if (isLoading) {
                         onStop();
-                      } else {
+                      } else if (!hasUploading) {
                         submit();
                       }
                     }}
-                    className="fade-in animate-in cursor-pointer text-muted-foreground rounded-full p-2 bg-secondary hover:bg-accent-foreground hover:text-accent transition-all duration-200"
+                    className={`fade-in animate-in rounded-full p-2 transition-all duration-200 ${
+                      hasUploading
+                        ? "opacity-50 cursor-not-allowed text-muted-foreground bg-secondary"
+                        : "cursor-pointer text-muted-foreground bg-secondary hover:bg-accent-foreground hover:text-accent"
+                    }`}
                   >
                     {isLoading ? (
                       <Square

@@ -67,6 +67,16 @@ firstTimeStorage.set(false);
 export default function ChatBot({ threadId, initialMessages }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [lastSubmittedFiles, setLastSubmittedFiles] = useState<
+    Array<{
+      id: string;
+      name: string;
+      type: string;
+      progress: number;
+      status: "uploading" | "done" | "error";
+      sourceId?: string;
+    }>
+  >([]);
 
   const [
     appStoreMutate,
@@ -158,6 +168,11 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
           mentions: latestRef.current.mentions,
           message: lastMessage,
         };
+
+        console.log("🚀 Chat API Request Body:");
+        console.log("Message:", JSON.stringify(lastMessage, null, 2));
+        console.log("Message metadata:", lastMessage.metadata);
+
         return { body: requestBody };
       },
     }),
@@ -231,6 +246,14 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     }
     return false;
   }, [isLoading, messages.at(-1)]);
+
+  // Clear the lastSubmittedFiles once an assistant message arrives
+  useEffect(() => {
+    const last = messages.at(-1);
+    if (last?.role === "assistant" && lastSubmittedFiles.length > 0) {
+      setLastSubmittedFiles([]);
+    }
+  }, [messages, lastSubmittedFiles.length]);
 
   const particle = useMemo(() => {
     return (
@@ -366,28 +389,79 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             >
               {messages.map((message, index) => {
                 const isLastMessage = messages.length - 1 === index;
+                const isUser = message.role === "user";
+                const clientFiles = (message.metadata as any)?.client_files as
+                  | Array<{
+                      id: string;
+                      name: string;
+                      type: string;
+                      sourceId?: string;
+                    }>
+                  | undefined;
+                const showInlinePreview =
+                  isUser &&
+                  Array.isArray(clientFiles) &&
+                  clientFiles.length > 0;
                 return (
-                  <PreviewMessage
-                    threadId={threadId}
-                    messageIndex={index}
-                    prevMessage={messages[index - 1]}
-                    key={message.id}
-                    message={message}
-                    status={status}
-                    addToolResult={addToolResult}
-                    isLoading={isLoading || isPendingToolCall}
-                    isLastMessage={isLastMessage}
-                    setMessages={setMessages}
-                    sendMessage={sendMessage}
-                    className={
-                      isLastMessage &&
-                      message.role != "user" &&
-                      !space &&
-                      message.parts.length > 1
-                        ? "min-h-[calc(55dvh-40px)]"
-                        : ""
-                    }
-                  />
+                  <>
+                    {showInlinePreview && (
+                      <div className="w-full mx-auto max-w-3xl px-6 relative">
+                        <div className="px-5 pt-2 flex justify-end">
+                          <div className="flex flex-wrap gap-2 justify-end mr-[-20px]">
+                            {clientFiles!.map((file) => (
+                              <div
+                                key={file.id}
+                                className="group relative flex items-center gap-2 pl-3 pr-2 py-2 rounded-md bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                                title={file.name}
+                              >
+                                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-500 text-white border border-blue-500 shadow-sm">
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="20"
+                                    height="20"
+                                    fill="currentColor"
+                                    className="remixicon text-white"
+                                  >
+                                    <path d="M21 9V20.9925C21 21.5511 20.5552 22 20.0066 22H3.9934C3.44495 22 3 21.556 3 21.0082V2.9918C3 2.45531 3.44694 2 3.99826 2H14V8C14 8.55228 14.4477 9 15 9H21ZM21 7H16V2.00318L21 7ZM8 7V9H11V7H8ZM8 11V13H16V11H8ZM8 15V17H16V15H8Z"></path>
+                                  </svg>
+                                </div>
+                                <div className="flex flex-col leading-tight pr-1 w-32">
+                                  <span className="text-xs font-medium text-neutral-800 truncate">
+                                    {file.name}
+                                  </span>
+                                  <span className="text-[10px] text-neutral-500">
+                                    {file.type || "file"}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <PreviewMessage
+                      threadId={threadId}
+                      messageIndex={index}
+                      prevMessage={messages[index - 1]}
+                      key={message.id}
+                      message={message}
+                      status={status}
+                      addToolResult={addToolResult}
+                      isLoading={isLoading || isPendingToolCall}
+                      isLastMessage={isLastMessage}
+                      setMessages={setMessages}
+                      sendMessage={sendMessage}
+                      className={
+                        isLastMessage &&
+                        message.role != "user" &&
+                        !space &&
+                        message.parts.length > 1
+                          ? "min-h-[calc(55dvh-40px)]"
+                          : ""
+                      }
+                    />
+                  </>
                 );
               })}
               {space && (
@@ -428,6 +502,11 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             isLoading={isLoading || isPendingToolCall}
             onStop={stop}
             onFocus={isFirstTime ? undefined : handleFocus}
+            onSubmitUploadedFiles={(files) => {
+              setLastSubmittedFiles(files);
+              // Scroll to bottom to ensure preview is near the new bubble
+              setTimeout(scrollToBottom, 0);
+            }}
           />
         </div>
         <DeleteThreadPopup

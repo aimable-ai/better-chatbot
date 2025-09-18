@@ -1,4 +1,5 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { collectUploadedFiles } from "./utils/aimable-files";
 
 /**
  * Custom Aimable provider that captures response headers, specifically x-routing-details
@@ -19,7 +20,154 @@ export function createAimableProvider({
       input: URL | RequestInfo,
       init?: RequestInit,
     ): Promise<Response> => {
-      const response = await fetch(input, init);
+      // Rebuild payload for Aimable to ensure top-level uploaded_files and preserve attachments
+      let rebuiltInit = init;
+      try {
+        const isPost = (init?.method || "POST").toUpperCase() === "POST";
+        const urlString =
+          typeof input === "string"
+            ? input
+            : (input as any)?.url || String(input);
+        const isAimableUrl =
+          typeof urlString === "string" && /aimable/i.test(urlString);
+        if (isPost && isAimableUrl && init?.body) {
+          const originalBodyText =
+            typeof init.body === "string"
+              ? init.body
+              : await new Response(init.body).text();
+          const originalJson = JSON.parse(originalBodyText || "{}");
+
+          // Pull originals captured earlier
+          const originalMessages =
+            (globalThis as any).__aimableOriginalMessages ||
+            originalJson.messages;
+          const explicitUploaded =
+            (globalThis as any).__aimableExplicitUploadedFiles ||
+            originalJson.uploaded_files;
+          const uploadedFilesTopLevel = collectUploadedFiles(
+            originalMessages,
+            explicitUploaded,
+          );
+
+          // Preserve attachments within messages; strip per-message uploaded_files if present
+          const sanitizedMessages = (originalJson.messages || []).map(
+            (m: any) => {
+              if (m && typeof m === "object") {
+                const { uploaded_files: _drop, ...rest } = m;
+                return rest;
+              }
+              return m;
+            },
+          );
+
+          const payload = {
+            ...originalJson,
+            messages: sanitizedMessages,
+            stream: Boolean(originalJson.stream),
+            trusted_model_override: originalJson.trusted_model_override ?? null,
+            uploaded_files: uploadedFilesTopLevel,
+          };
+
+          const headers = {
+            ...(init.headers as any),
+            "Content-Type": "application/json",
+          } as Record<string, string>;
+
+          // Log outbound request only (no response)
+          const url = urlString;
+          const body = JSON.stringify(payload);
+          console.log("[AimableProxy][OUTBOUND]", {
+            url,
+            headers,
+            payload: JSON.parse(body),
+          });
+
+          rebuiltInit = {
+            ...init,
+            headers,
+            body,
+          };
+        }
+      } catch {}
+
+      const response = await fetch(input, rebuiltInit);
+
+      // If streaming, Aimable may emit auxiliary events (e.g., {"event":"searching_uploaded_files"}).
+      // Filter non-OpenAI-compatible SSE events so the AI SDK validator doesn't throw.
+      try {
+        const contentType = response.headers.get("content-type") || "";
+        const isSse = /text\/event-stream/i.test(contentType);
+        if (isSse && response.body) {
+          const filtered = new ReadableStream<Uint8Array>({
+            start(controller) {
+              const reader = response.body!.getReader();
+              const decoder = new TextDecoder();
+              const encoder = new TextEncoder();
+              let buffer = "";
+              function pump(): any {
+                return reader.read().then(({ done, value }) => {
+                  if (done) {
+                    // Flush remaining buffer
+                    if (buffer.length > 0) {
+                      processBuffer(true);
+                    }
+                    controller.close();
+                    return;
+                  }
+                  try {
+                    buffer += decoder.decode(value, { stream: true });
+                    processBuffer(false);
+                  } catch {}
+                  return pump();
+                });
+              }
+              function processBuffer(flush: boolean) {
+                // Split by double newlines which delimit SSE events
+                const parts = buffer.split(/\n\n/);
+                const remain = flush ? "" : parts.pop() || "";
+                for (const part of parts) {
+                  const lines = part.split(/\n/);
+                  const dataLines = lines.filter((l) => l.startsWith("data:"));
+                  const passthrough = [] as string[];
+                  for (const dl of dataLines) {
+                    const raw = dl.slice(5).trimStart();
+                    let skip = false;
+                    try {
+                      const json = JSON.parse(raw);
+                      // Keep only if it matches OpenAI-compatible chunks: has choices[] or error{}
+                      const hasChoices = Array.isArray(json?.choices);
+                      const hasError =
+                        json &&
+                        typeof json.error === "object" &&
+                        json.error !== null;
+                      // Drop known auxiliary events
+                      if (!hasChoices && !hasError) {
+                        skip = true;
+                      }
+                    } catch {
+                      // non-JSON, pass through
+                    }
+                    if (!skip) {
+                      passthrough.push(dl);
+                    }
+                  }
+                  if (passthrough.length > 0) {
+                    const rebuilt = passthrough.join("\n") + "\n\n";
+                    controller.enqueue(encoder.encode(rebuilt));
+                  }
+                }
+                buffer = remain;
+              }
+              pump();
+            },
+          });
+          return new Response(filtered, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+          });
+        }
+      } catch {}
 
       // Store the routing details header globally for access by the API routes
       const routingDetails = response.headers.get("x-routing-details");

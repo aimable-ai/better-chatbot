@@ -13,6 +13,7 @@ import {
   getLastRoutingDetails,
   clearLastRoutingDetails,
 } from "lib/ai/aimable-provider";
+import { setAimableOriginals } from "lib/ai/utils/aimable-files";
 
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 
@@ -70,6 +71,10 @@ export async function POST(request: Request) {
       mentions = [],
     } = chatApiSchemaRequestBodySchema.parse(json);
 
+    // Extract attachments and uploaded_files from message metadata
+    const attachments = (message.metadata as any)?.attachments || [];
+    const uploaded_files = (message.metadata as any)?.uploaded_files || [];
+
     const model = customModelProvider.getModel(chatModel);
 
     let thread = await chatRepository.selectThreadDetails(id);
@@ -100,7 +105,14 @@ export async function POST(request: Request) {
     if (messages.at(-1)?.id == message.id) {
       messages.pop();
     }
-    messages.push(message);
+
+    // Add attachments to the message if they exist (do not place uploaded_files inside message)
+    const messageWithFiles = {
+      ...message,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    };
+
+    messages.push(messageWithFiles);
 
     const supportToolCall = !isToolCallUnsupportedModel(model);
 
@@ -225,6 +237,9 @@ export async function POST(request: Request) {
           `binding tool count APP_DEFAULT: ${Object.keys(APP_DEFAULT_TOOLS ?? {}).length}, MCP: ${Object.keys(MCP_TOOLS ?? {}).length}, Workflow: ${Object.keys(WORKFLOW_TOOLS ?? {}).length}`,
         );
         logger.info(`model: ${chatModel?.provider}/${chatModel?.model}`);
+
+        // Make original messages and explicit uploaded_files available to Aimable provider
+        setAimableOriginals({ messages, uploaded_files });
 
         const result = streamText({
           model,
