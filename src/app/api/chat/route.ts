@@ -285,6 +285,15 @@ export async function POST(request: Request) {
                       (metadata as any).guardrails = violations;
                     }
                   }
+                  // Capture altered input for the user message
+                  const alteredInput = getLastAlteredInput();
+                  if (alteredInput) {
+                    (metadata as any).alteredInput = alteredInput;
+                    console.log(
+                      "[Chat API][METADATA] Storing altered input in metadata:",
+                      alteredInput,
+                    );
+                  }
                 } catch {}
                 return metadata;
               }
@@ -295,6 +304,22 @@ export async function POST(request: Request) {
 
       generateId: generateUUID,
       onFinish: async ({ responseMessage }) => {
+        // Update user message with altered input if available
+        const alteredInput = getLastAlteredInput();
+        let userMessageToSave = message;
+        if (alteredInput) {
+          console.log(
+            "[Chat API][ONFINISH] Updating user message with altered input:",
+            alteredInput,
+          );
+          userMessageToSave = {
+            ...message,
+            parts: message.parts.map((p) =>
+              p.type === "text" ? { ...p, text: alteredInput } : p,
+            ),
+          };
+        }
+
         if (responseMessage.id == message.id) {
           await chatRepository.upsertMessage({
             threadId: thread!.id,
@@ -305,9 +330,9 @@ export async function POST(request: Request) {
         } else {
           await chatRepository.upsertMessage({
             threadId: thread!.id,
-            role: message.role,
-            parts: message.parts.map(convertToSavePart),
-            id: message.id,
+            role: userMessageToSave.role,
+            parts: userMessageToSave.parts.map(convertToSavePart),
+            id: userMessageToSave.id,
           });
           await chatRepository.upsertMessage({
             threadId: thread!.id,

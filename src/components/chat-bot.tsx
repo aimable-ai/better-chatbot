@@ -373,26 +373,46 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     }
   }, [input]);
 
-  // If the proxy returned an altered input for the latest user message, reflect it in the UI bubble
+  // If the proxy returned an altered input, apply it to the most recently sent user message
   useEffect(() => {
     if (!messages.length) return;
-    const last = messages.at(-1);
-    if (last?.role !== "assistant") {
-      const altered = getLastAlteredInput();
-      if (altered) {
-        setMessages((prev) => {
-          const copy = [...prev];
-          const idx = copy.length - 1;
-          if (idx >= 0 && copy[idx].role === "user") {
-            const parts = copy[idx].parts.map((p) =>
-              p.type === "text" ? { ...p, text: altered } : p,
-            );
-            copy[idx] = { ...copy[idx], parts } as any;
-          }
-          return copy;
-        });
-        clearLastAlteredInput();
-      }
+
+    // Only check for altered input when the last message is an assistant message
+    // (meaning a response just came back)
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role !== "assistant") return;
+
+    // Check if the assistant message has altered input in its metadata
+    const metadata = lastMessage.metadata as any;
+    const alteredInput = metadata?.alteredInput;
+
+    if (alteredInput) {
+      console.log(
+        "[ChatBot][UI] Applying altered input from metadata:",
+        alteredInput,
+      );
+      setMessages((prev) => {
+        const copy = [...prev];
+        // Only update the most recent user message (the one that was just sent)
+        const lastUserMessageIndex = copy.findLastIndex(
+          (msg) => msg.role === "user",
+        );
+        if (lastUserMessageIndex !== -1) {
+          const parts = copy[lastUserMessageIndex].parts.map((p) =>
+            p.type === "text" ? { ...p, text: alteredInput } : p,
+          );
+          copy[lastUserMessageIndex] = {
+            ...copy[lastUserMessageIndex],
+            parts,
+          } as any;
+          console.log(
+            "[ChatBot][UI] Updated most recent user message at index",
+            lastUserMessageIndex,
+            "with altered text",
+          );
+        }
+        return copy;
+      });
     }
   }, [messages]);
 
