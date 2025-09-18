@@ -565,17 +565,25 @@ export const AssistMessagePart = memo(function AssistMessagePart({
                 return (
                   <Tooltip key={`${message.id}-guardrail-${idx}`}>
                     <TooltipTrigger asChild>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-destructive text-white bg-destructive flex items-center gap-1 cursor-default">
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 cursor-default ${
+                          name === "CompetitorCheck"
+                            ? "border-orange-500 text-white bg-orange-500"
+                            : "border-destructive text-white bg-destructive"
+                        }`}
+                      >
                         <TriangleAlert className="size-3" />
                         {name}
                       </span>
                     </TooltipTrigger>
                     <TooltipContent className="p-4 w-72 bg-card border shadow-lg">
                       <div className="space-y-2">
-                        <TriangleAlert className="size-3" />{" "}
-                        <span className="text-sm font-semibold text-foreground">
-                          {name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <TriangleAlert className="size-3" />
+                          <span className="text-sm font-semibold text-foreground">
+                            {name}
+                          </span>
+                        </div>
                         {violation?.reason && (
                           <div className="text-[11px] text-muted-foreground mt-1">
                             {violation.reason}
@@ -586,6 +594,32 @@ export const AssistMessagePart = memo(function AssistMessagePart({
                   </Tooltip>
                 );
               })}
+            </div>
+          )}
+          {(metadata as any)?.alteredInput && (
+            <div className="flex flex-wrap gap-2 items-center ml-5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 cursor-default border-orange-500 text-white bg-orange-500">
+                    <TriangleAlert className="size-3" />
+                    PII Detected
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="p-4 w-72 bg-card border shadow-lg">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <TriangleAlert className="size-3" />
+                      <span className="text-sm font-semibold text-foreground">
+                        PII Detected
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-1">
+                      Personal information was detected and modified in your
+                      input
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             </div>
           )}
         </div>
