@@ -5,13 +5,7 @@ import Link from "next/link";
 import { SidebarMenuButton, SidebarMenuSkeleton } from "ui/sidebar";
 import { SidebarGroupContent, SidebarMenu, SidebarMenuItem } from "ui/sidebar";
 import { SidebarGroup } from "ui/sidebar";
-import {
-  Bot,
-  ChevronDown,
-  ChevronUp,
-  MoreHorizontal,
-  PlusIcon,
-} from "lucide-react";
+import { Bot, MoreHorizontal, PlusIcon } from "lucide-react";
 
 import { useMounted } from "@/hooks/use-mounted";
 
