@@ -2,10 +2,6 @@
 
 import { getToolName, ToolUIPart, UIMessage } from "ai";
 import {
-  getLastRoutingDetails,
-  parseRoutingDetails,
-} from "lib/ai/aimable-transport";
-import {
   Check,
   Copy,
   Loader,
@@ -293,6 +289,9 @@ export const AssistMessagePart = memo(function AssistMessagePart({
   const [isDeleting, setIsDeleting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const metadata = message.metadata as ChatMetadata | undefined;
+  const hasGuardrails =
+    Array.isArray(metadata?.guardrailNames) &&
+    metadata!.guardrailNames!.length > 0;
 
   const agent = useMemo(() => {
     return agentList.find((a) => a.id === metadata?.agentId);
@@ -364,7 +363,7 @@ export const AssistMessagePart = memo(function AssistMessagePart({
         <Markdown>{part.text}</Markdown>
       </div>
       {showActions && (
-        <div className="flex w-full">
+        <div className="flex w-full items-center">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -556,6 +555,38 @@ export const AssistMessagePart = memo(function AssistMessagePart({
                 </div>
               </TooltipContent>
             </Tooltip>
+          )}
+          {hasGuardrails && (
+            <div className="flex flex-wrap gap-2 items-center ml-5">
+              {metadata!.guardrailNames!.map((name, idx) => {
+                const violation = metadata?.guardrails?.find(
+                  (g) => g?.name === name,
+                );
+                return (
+                  <Tooltip key={`${message.id}-guardrail-${idx}`}>
+                    <TooltipTrigger asChild>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-destructive text-white bg-destructive flex items-center gap-1 cursor-default">
+                        <TriangleAlert className="size-3" />
+                        {name}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="p-4 w-72 bg-card border shadow-lg">
+                      <div className="space-y-2">
+                        <TriangleAlert className="size-3" />{" "}
+                        <span className="text-sm font-semibold text-foreground">
+                          {name}
+                        </span>
+                        {violation?.reason && (
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            {violation.reason}
+                          </div>
+                        )}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
           )}
         </div>
       )}

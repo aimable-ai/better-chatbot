@@ -92,6 +92,15 @@ export function createAimableProvider({
 
       const response = await fetch(input, rebuiltInit);
 
+      // Store the routing details header globally for access by the API routes
+      // Do this BEFORE any early returns (e.g., SSE filtering) so it is not skipped
+      try {
+        const routingDetailsEarly = response.headers.get("x-routing-details");
+        if (routingDetailsEarly) {
+          (globalThis as any).__lastRoutingDetails = routingDetailsEarly;
+        }
+      } catch {}
+
       // If streaming, Aimable may emit auxiliary events (e.g., {"event":"searching_uploaded_files"}).
       // Filter non-OpenAI-compatible SSE events so the AI SDK validator doesn't throw.
       try {
@@ -134,6 +143,26 @@ export function createAimableProvider({
                     let skip = false;
                     try {
                       const json = JSON.parse(raw);
+                      // Capture guardrail violations for later use (end-of-stream auxiliary event)
+                      if (
+                        json &&
+                        Array.isArray(json.violated_output_guardrails)
+                      ) {
+                        try {
+                          const violations = json.violated_output_guardrails;
+                          const names = violations
+                            .map((g: any) => g?.name)
+                            .filter(Boolean);
+                          if (violations.length > 0) {
+                            (globalThis as any).__aimableLastGuardrails =
+                              JSON.stringify(violations);
+                          }
+                          if (names.length > 0) {
+                            (globalThis as any).__aimableLastGuardrailNames =
+                              JSON.stringify(names);
+                          }
+                        } catch {}
+                      }
                       // Keep only if it matches OpenAI-compatible chunks: has choices[] or error{}
                       const hasChoices = Array.isArray(json?.choices);
                       const hasError =
@@ -169,12 +198,33 @@ export function createAimableProvider({
         }
       } catch {}
 
-      // Store the routing details header globally for access by the API routes
-      const routingDetails = response.headers.get("x-routing-details");
-      if (routingDetails) {
-        // Store in a global variable that can be accessed by the API routes
-        (globalThis as any).__lastRoutingDetails = routingDetails;
-      }
+      // For non-SSE responses, attempt to detect guardrails at the end as well
+      try {
+        const contentType = response.headers.get("content-type") || "";
+        const isSse = /text\/event-stream/i.test(contentType);
+        if (!isSse) {
+          // clone to avoid consuming the original stream
+          const clone = response.clone();
+          const text = await clone.text();
+          try {
+            const json = JSON.parse(text);
+            if (json && Array.isArray(json.violated_output_guardrails)) {
+              const violations = json.violated_output_guardrails;
+              const names = violations.map((g: any) => g?.name).filter(Boolean);
+              if (violations.length > 0) {
+                (globalThis as any).__aimableLastGuardrails =
+                  JSON.stringify(violations);
+              }
+              if (names.length > 0) {
+                (globalThis as any).__aimableLastGuardrailNames =
+                  JSON.stringify(names);
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+
+      // Routing details already stored above before early returns
 
       return response;
     };
@@ -203,4 +253,24 @@ export function getLastRoutingDetails(): string | null {
  */
 export function clearLastRoutingDetails(): void {
   delete (globalThis as any).__lastRoutingDetails;
+}
+
+/**
+ * Guardrails accessors (names only)
+ */
+export function getLastGuardrailNames(): string | null {
+  return (globalThis as any).__aimableLastGuardrailNames || null;
+}
+export function clearLastGuardrailNames(): void {
+  delete (globalThis as any).__aimableLastGuardrailNames;
+}
+
+/**
+ * Guardrails accessors (full objects)
+ */
+export function getLastGuardrails(): string | null {
+  return (globalThis as any).__aimableLastGuardrails || null;
+}
+export function clearLastGuardrails(): void {
+  delete (globalThis as any).__aimableLastGuardrails;
 }

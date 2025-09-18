@@ -11,6 +11,8 @@ export type ChatMetadata = {
   toolCount?: number;
   agentId?: string;
   trusted?: boolean;
+  guardrailNames?: string[]; // names like "CompetitorCheck" shown after stream completion
+  guardrails?: { name: string; reason?: string }[]; // full violations for tooltip
 };
 
 export type ChatModel = {

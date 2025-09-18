@@ -12,6 +12,10 @@ import { customModelProvider, isToolCallUnsupportedModel } from "lib/ai/models";
 import {
   getLastRoutingDetails,
   clearLastRoutingDetails,
+  getLastGuardrailNames,
+  clearLastGuardrailNames,
+  getLastGuardrails,
+  clearLastGuardrails,
 } from "lib/ai/aimable-provider";
 import { setAimableOriginals } from "lib/ai/utils/aimable-files";
 
@@ -265,6 +269,20 @@ export async function POST(request: Request) {
                     const parsed = JSON.parse(routingDetails);
                     metadata.trusted = !!parsed?.use_trusted_model;
                   }
+                  const guardrailNamesJson = getLastGuardrailNames();
+                  if (guardrailNamesJson) {
+                    const names = JSON.parse(guardrailNamesJson);
+                    if (Array.isArray(names) && names.length > 0) {
+                      metadata.guardrailNames = names;
+                    }
+                  }
+                  const guardrailsJson = getLastGuardrails();
+                  if (guardrailsJson) {
+                    const violations = JSON.parse(guardrailsJson);
+                    if (Array.isArray(violations) && violations.length > 0) {
+                      (metadata as any).guardrails = violations;
+                    }
+                  }
                 } catch {}
                 return metadata;
               }
@@ -310,6 +328,7 @@ export async function POST(request: Request) {
 
     // Get routing details from Aimable proxy if available
     const routingDetails = getLastRoutingDetails();
+    const guardrailNamesJson = getLastGuardrailNames();
 
     const response = createUIMessageStreamResponse({
       stream,
@@ -324,6 +343,11 @@ export async function POST(request: Request) {
       );
       clearLastRoutingDetails(); // Clear after use
     }
+
+    // Clear guardrail names after attaching to metadata
+    if (guardrailNamesJson) clearLastGuardrailNames();
+    const guardrailsJson = getLastGuardrails();
+    if (guardrailsJson) clearLastGuardrails();
 
     return response;
   } catch (error: any) {
