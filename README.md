@@ -57,6 +57,18 @@ pnpm build:local && pnpm start
 # (Recommended for most cases. Ensures correct cookie settings.)
 # For development mode with hot-reloading and debugging, you can use:
 # pnpm dev
+
+# 7. Including logging between Better Chatbot backend and Aimable Proxy
+OUTGOING_LOG_FILTER=aimable.ai NODE_OPTIONS="--require ./server/patch-outgoing.cjs" pnpm dev
+
+# 8. Throttle Memory usage
+NODE_OPTIONS="--max-old-space-size=1500" pnpm dev
+
+# 9. Close down container
+docker compose -f docker/compose.yml down
+
+# 10. Parse .env file
+pnpm openai-compatiable:parse
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to get started.
@@ -144,7 +156,7 @@ Sample prompt:
 **Example:** Create specialized AI agents with custom instructions and tool access.
 
 - Define custom agents with specific system prompts and available tools
-- Easily invoke agents in chat using `@agent_name` 
+- Easily invoke agents in chat using `@agent_name`
 - Build task-specific assistants like a GitHub Manager agent with issue/PR tools and project context
 
 For instance, create a GitHub Manager agent by:
