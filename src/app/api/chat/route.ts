@@ -54,11 +54,22 @@ import { getSession } from "auth/server";
 import { colorize } from "consola/utils";
 import { generateUUID } from "lib/utils";
 
+import { after } from "next/server";
+import {
+  getActiveTraceId,
+  getActiveSpanId,
+  observe,
+  updateActiveObservation,
+  updateActiveTrace,
+} from "@langfuse/tracing";
+import { trace } from "@opentelemetry/api";
+import { langfuseSpanProcessor } from "../../../instrumentation";
+
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
 });
 
-export async function POST(request: Request) {
+const handler = async (request: Request) => {
   try {
     const json = await request.json();
 
@@ -76,6 +87,21 @@ export async function POST(request: Request) {
       allowedMcpServers,
       mentions = [],
     } = chatApiSchemaRequestBodySchema.parse(json);
+
+    const inputText = (() => {
+      const textPart = message.parts.find(
+        (part) => (part as any).type === "text",
+      );
+      const text = (textPart as any)?.text;
+      return typeof text === "string" ? text : undefined;
+    })();
+    updateActiveObservation({ input: inputText });
+    updateActiveTrace({
+      name: "my-ai-sdk-trace",
+      sessionId: id,
+      userId: session.user.id,
+      input: inputText,
+    });
 
     // Extract attachments and uploaded_files from message metadata
     const attachments = (message.metadata as any)?.attachments || [];
@@ -247,7 +273,15 @@ export async function POST(request: Request) {
         // Make original messages and explicit uploaded_files available to Aimable provider
         setAimableOriginals({ messages, uploaded_files });
 
+        const tracingHeaders: Record<string, string> = {};
+        const traceId = getActiveTraceId();
+        const spanId = getActiveSpanId();
+        if (traceId) tracingHeaders["X-Trace-Id"] = traceId;
+        if (spanId) tracingHeaders["X-Parent-Span-Id"] = spanId;
+
+        console.log("TraceId", getActiveTraceId(), "spanId", getActiveSpanId());
         const result = streamText({
+          headers: tracingHeaders,
           model,
           system: systemPrompt,
           messages: convertToModelMessages(messages),
@@ -257,6 +291,29 @@ export async function POST(request: Request) {
           stopWhen: stepCountIs(10),
           toolChoice: "auto",
           abortSignal: request.signal,
+          experimental_telemetry: {
+            isEnabled: true,
+            metadata: {
+              langfuseUpdateParent: false, // Do not update the parent trace with execution results
+            },
+          },
+          onFinish: async (r) => {
+            try {
+              // r.content is provided by the AI SDK
+              updateActiveObservation({ output: (r as any).content });
+              updateActiveTrace({ output: (r as any).content });
+            } finally {
+              trace.getActiveSpan()?.end();
+            }
+          },
+          onError: async (err) => {
+            try {
+              updateActiveObservation({ output: err, level: "ERROR" as const });
+              updateActiveTrace({ output: err });
+            } finally {
+              trace.getActiveSpan()?.end();
+            }
+          },
         });
         result.consumeStream();
         dataStream.merge(
@@ -409,9 +466,18 @@ export async function POST(request: Request) {
     const guardrailsJson = getLastGuardrails();
     if (guardrailsJson) clearLastGuardrails();
 
+    // Schedule flush of telemetry after request finishes (serverless-safe)
+    after(async () => await langfuseSpanProcessor.forceFlush());
     return response;
   } catch (error: any) {
     logger.error(error);
+    // Ensure telemetry is flushed on error paths as well
+    after(async () => await langfuseSpanProcessor.forceFlush());
     return Response.json({ message: error.message }, { status: 500 });
   }
-}
+};
+
+export const POST = observe(handler, {
+  name: "handle-chat-message",
+  endOnExit: false,
+});
