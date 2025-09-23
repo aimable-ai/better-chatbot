@@ -292,6 +292,9 @@ export const AssistMessagePart = memo(function AssistMessagePart({
   const hasGuardrails =
     Array.isArray(metadata?.guardrailNames) &&
     metadata!.guardrailNames!.length > 0;
+  const hasViolatedPolicies =
+    Array.isArray(metadata?.violatedPolicies) &&
+    metadata!.violatedPolicies!.length > 0;
 
   const agent = useMemo(() => {
     return agentList.find((a) => a.id === metadata?.agentId);
@@ -594,6 +597,48 @@ export const AssistMessagePart = memo(function AssistMessagePart({
                   </Tooltip>
                 );
               })}
+            </div>
+          )}
+          {hasViolatedPolicies && (
+            <div className="flex flex-wrap gap-2 items-center ml-5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 cursor-default border-orange-500 text-white bg-orange-500">
+                    <TriangleAlert className="size-3" />
+                    Policy Violation
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="p-4 w-72 bg-card border shadow-lg">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <TriangleAlert className="size-3" />
+                      <span className="text-sm font-semibold text-foreground">
+                        Policy Violation
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-1">
+                      {metadata!.violatedPolicies!.length} policy violation
+                      {metadata!.violatedPolicies!.length > 1 ? "s" : ""}{" "}
+                      detected
+                    </div>
+                    {metadata!.violatedPolicies!.map((policy, idx) => {
+                      const text =
+                        policy?.text ||
+                        policy?.message ||
+                        policy?.reason ||
+                        JSON.stringify(policy);
+                      return (
+                        <div
+                          key={idx}
+                          className="text-[11px] text-muted-foreground mt-2 p-2 bg-muted/30 rounded border-l-2 border-orange-500"
+                        >
+                          {text}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             </div>
           )}
           {(metadata as any)?.alteredInput && (
