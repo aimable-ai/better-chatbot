@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getSession } from "auth/server";
 import {
   UIMessage,
@@ -16,7 +15,8 @@ import {
 import { setAimableOriginals } from "lib/ai/utils/aimable-files";
 import globalLogger from "logger";
 import { buildUserSystemPrompt } from "lib/ai/prompts";
-import { userRepository } from "lib/db/repository";
+import { getUserPreferences } from "lib/user/server";
+
 import { colorize } from "consola/utils";
 
 const logger = globalLogger.withDefaults({
@@ -28,9 +28,8 @@ export async function POST(request: Request) {
     const json = await request.json();
 
     const session = await getSession();
-
-    if (!session?.user.id) {
-      return redirect("/sign-in");
+    if (!session) {
+      return new Response("Unauthorized", { status: 401 });
     }
 
     const { messages, chatModel, instructions } = json as {
@@ -44,7 +43,7 @@ export async function POST(request: Request) {
     logger.info(`model: ${chatModel?.provider}/${chatModel?.model}`);
     const model = customModelProvider.getModel(chatModel);
     const userPreferences =
-      (await userRepository.getPreferences(session.user.id)) || undefined;
+      (await getUserPreferences(session.user.id)) || undefined;
 
     // Get routing and altered-input details from Aimable proxy if available
     const routingDetails = getLastRoutingDetails();

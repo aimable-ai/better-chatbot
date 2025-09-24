@@ -2,6 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 interface ThemeLogoProps {
   alt?: string;
@@ -27,12 +28,12 @@ export function ThemeLogo({
   if (!mounted) {
     // Return a placeholder with the same dimensions during SSR
     return (
-      <img
+      <Image
         src="/logo.webp"
         alt={alt}
         className={className}
-        width={width}
-        height={height}
+        width={width || 120}
+        height={height || 40}
         style={{ opacity: 0 }}
       />
     );
@@ -43,12 +44,12 @@ export function ThemeLogo({
   const logoSrc = isDark ? "/logo-dark.png" : "/logo.webp";
 
   return (
-    <img
+    <Image
       src={logoSrc}
       alt={alt}
       className={className}
-      width={width}
-      height={height}
+      width={width || 120}
+      height={height || 40}
     />
   );
 }

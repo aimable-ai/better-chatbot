@@ -36,13 +36,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const upstream = await fetch("https://demo.aimable.ai/api/v1/files/", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
+    const upstream = await fetch(
+      "https://demo.aimable.ai/api-proxy/v1/files/",
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+        },
+        body: forward,
       },
-      body: forward,
-    });
+    );
 
     const contentType =
       upstream.headers.get("content-type") || "application/json";
@@ -117,14 +120,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const upstream = await fetch("https://demo.aimable.ai/api/v1/files/", {
-      method: "DELETE",
-      headers: {
-        "x-api-key": apiKey,
-        "Content-Type": "application/json",
+    const upstream = await fetch(
+      "https://demo.aimable.ai/api-proxy/v1/files/",
+      {
+        method: "DELETE",
+        headers: {
+          "x-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ source_ids }),
       },
-      body: JSON.stringify({ source_ids }),
-    });
+    );
 
     const contentType =
       upstream.headers.get("content-type") || "application/json";

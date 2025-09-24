@@ -27,26 +27,31 @@ import {
   ChevronRight,
   Info,
   HelpCircle,
+  Settings,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { appStore } from "@/app/store";
 import { BASE_THEMES, COOKIE_KEY_LOCALE, SUPPORTED_LOCALES } from "lib/const";
-import { capitalizeFirstLetter, cn } from "lib/utils";
+import { capitalizeFirstLetter, cn, fetcher } from "lib/utils";
 import { authClient } from "auth/client";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { getLocaleAction } from "@/i18n/get-locale";
-import { useCallback } from "react";
+import { Suspense, useCallback } from "react";
 import { useThemeStyle } from "@/hooks/use-theme-style";
-import { Session, User } from "better-auth";
+import { BasicUser } from "app-types/user";
+import { Skeleton } from "ui/skeleton";
 
-export function AppSidebarUser({
-  session,
-}: { session?: { session: Session; user: User } }) {
+export function AppSidebarUserInner(props: {
+  user?: BasicUser;
+}) {
+  const { data: user } = useSWR<BasicUser>(`/api/user/details`, fetcher, {
+    fallbackData: props.user,
+    suspense: true,
+    revalidateOnMount: false,
+  });
   const appStoreMutate = appStore((state) => state.mutate);
   const t = useTranslations("Layout");
-
-  const user = session?.user;
 
   const logout = () => {
     authClient.signOut().finally(() => {
@@ -54,20 +59,7 @@ export function AppSidebarUser({
     });
   };
 
-  useSWR(
-    "/session-update",
-    () =>
-      authClient.getSession().then(() => {
-        console.log(`session-update: ${new Date().toISOString()}`);
-      }),
-    {
-      refreshIntervalOnFocus: false,
-      focusThrottleInterval: 1000 * 60 * 5,
-      revalidateOnFocus: false,
-      refreshWhenHidden: true,
-      refreshInterval: 1000 * 60 * 5,
-    },
-  );
+  if (!user) return null;
 
   return (
     <SidebarMenu>
@@ -77,6 +69,7 @@ export function AppSidebarUser({
             <SidebarMenuButton
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-input/30 border"
               size={"lg"}
+              data-testid="sidebar-user-button"
             >
               <Avatar className="rounded-full size-8 border">
                 <AvatarImage
@@ -86,7 +79,9 @@ export function AppSidebarUser({
                 />
                 <AvatarFallback>{user?.name || ""}</AvatarFallback>
               </Avatar>
-              <span className="truncate">{user?.email}</span>
+              <span className="truncate" data-testid="sidebar-user-email">
+                {user?.email}
+              </span>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -107,7 +102,12 @@ export function AppSidebarUser({
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user?.name}</span>
+                  <span
+                    className="truncate font-medium"
+                    data-testid="sidebar-user-name"
+                  >
+                    {user?.name}
+                  </span>
                   <span className="truncate text-xs text-muted-foreground">
                     {user?.email}
                   </span>
@@ -148,6 +148,16 @@ export function AppSidebarUser({
             >
               <Info className="size-4" />
               <span>{t("aboutAimable")}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onClick={() => appStoreMutate({ openUserSettings: true })}
+              className="cursor-pointer"
+              data-testid="user-settings-menu-item"
+            >
+              <Settings className="size-4 text-foreground" />
+              <span>User Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="cursor-pointer">
@@ -275,5 +285,34 @@ function SelectLanguage() {
         </DropdownMenuSubContent>
       </DropdownMenuPortal>
     </DropdownMenuSub>
+  );
+}
+
+export function AppSidebarUserSkeleton() {
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-input/30 border"
+          size={"lg"}
+          data-testid="sidebar-user-button"
+        >
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <Skeleton className="h-4 w-24" />
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+export function AppSidebarUser({
+  user,
+}: {
+  user?: BasicUser;
+}) {
+  return (
+    <Suspense fallback={<AppSidebarUserSkeleton />}>
+      <AppSidebarUserInner user={user} />
+    </Suspense>
   );
 }

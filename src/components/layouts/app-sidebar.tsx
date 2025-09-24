@@ -5,13 +5,14 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuButton,
   useSidebar,
 } from "ui/sidebar";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Link from "next/link";
+import { PanelLeft } from "lucide-react";
 
 import { AppSidebarMenus } from "./app-sidebar-menus";
 import { AppSidebarAgents } from "./app-sidebar-agents";
@@ -20,20 +21,18 @@ import { ThemeLogo } from "ui/theme-logo";
 
 import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
 import { AppSidebarUser } from "./app-sidebar-user";
-import { PanelLeft } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Session, User } from "better-auth";
+import { BasicUser } from "app-types/user";
 
 export function AppSidebar({
-  session,
-}: { session?: { session: Session; user: User } }) {
-  const { toggleSidebar, setOpenMobile } = useSidebar();
+  user,
+}: {
+  user?: BasicUser;
+}) {
+  const userRole = user?.role;
   const router = useRouter();
-  const isMobile = useIsMobile();
+  const { setOpenMobile } = useSidebar();
 
-  const currentPath = usePathname();
-
-  // global shortcuts
+  // Handle new chat shortcut (specific to main app)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isShortcutEvent(e, Shortcuts.openNewChat)) {
@@ -41,20 +40,10 @@ export function AppSidebar({
         router.push("/");
         router.refresh();
       }
-      if (isShortcutEvent(e, Shortcuts.toggleSidebar)) {
-        e.preventDefault();
-        toggleSidebar();
-      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [router, toggleSidebar]);
-
-  useEffect(() => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  }, [currentPath, isMobile]);
+  }, [router]);
 
   return (
     <Sidebar
@@ -92,13 +81,13 @@ export function AppSidebar({
 
       <SidebarContent className="mt-2 overflow-hidden relative">
         <div className="flex flex-col overflow-y-auto">
-          <AppSidebarMenus />
-          <AppSidebarAgents />
+          <AppSidebarMenus user={user} />
+          <AppSidebarAgents userRole={userRole} />
           <AppSidebarThreads />
         </div>
       </SidebarContent>
       <SidebarFooter className="flex flex-col items-stretch space-y-2">
-        <AppSidebarUser session={session} />
+        <AppSidebarUser user={user} />
       </SidebarFooter>
     </Sidebar>
   );
