@@ -173,6 +173,16 @@ export function createAimableProvider({
                           }
                         } catch {}
                       }
+                      // Capture violated policies for later use
+                      if (json && Array.isArray(json.violated_policies)) {
+                        try {
+                          const policies = json.violated_policies;
+                          if (policies.length > 0) {
+                            (globalThis as any).__aimableLastViolatedPolicies =
+                              JSON.stringify(policies);
+                          }
+                        } catch {}
+                      }
                       // Keep only if it matches OpenAI-compatible chunks: has choices[] or error{}
                       const hasChoices = Array.isArray(json?.choices);
                       const hasError =
@@ -228,6 +238,13 @@ export function createAimableProvider({
               if (names.length > 0) {
                 (globalThis as any).__aimableLastGuardrailNames =
                   JSON.stringify(names);
+              }
+            }
+            if (json && Array.isArray(json.violated_policies)) {
+              const policies = json.violated_policies;
+              if (policies.length > 0) {
+                (globalThis as any).__aimableLastViolatedPolicies =
+                  JSON.stringify(policies);
               }
             }
           } catch {}
@@ -293,4 +310,14 @@ export function getLastGuardrails(): string | null {
 }
 export function clearLastGuardrails(): void {
   delete (globalThis as any).__aimableLastGuardrails;
+}
+
+/**
+ * Violated policies accessors
+ */
+export function getLastViolatedPolicies(): string | null {
+  return (globalThis as any).__aimableLastViolatedPolicies || null;
+}
+export function clearLastViolatedPolicies(): void {
+  delete (globalThis as any).__aimableLastViolatedPolicies;
 }

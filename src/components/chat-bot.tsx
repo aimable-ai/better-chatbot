@@ -387,23 +387,31 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
         "[ChatBot][UI] Applying altered input from metadata:",
         alteredInput,
       );
+      // Guard: if the most recent user message already has this text, skip update
+      const lastUserMessageIndex = messages.findLastIndex(
+        (msg) => msg.role === "user",
+      );
+      if (lastUserMessageIndex === -1) return;
+      const lastUser = messages[lastUserMessageIndex];
+      const lastUserTextPart = lastUser.parts
+        .filter((p) => p.type === "text")
+        .at(-1) as any;
+      if (lastUserTextPart?.text === alteredInput) return;
+
       setMessages((prev) => {
         const copy = [...prev];
-        // Only update the most recent user message (the one that was just sent)
-        const lastUserMessageIndex = copy.findLastIndex(
-          (msg) => msg.role === "user",
-        );
-        if (lastUserMessageIndex !== -1) {
-          const parts = copy[lastUserMessageIndex].parts.map((p) =>
+        const idx = copy.findLastIndex((msg) => msg.role === "user");
+        if (idx !== -1) {
+          const parts = copy[idx].parts.map((p) =>
             p.type === "text" ? { ...p, text: alteredInput } : p,
           );
-          copy[lastUserMessageIndex] = {
-            ...copy[lastUserMessageIndex],
+          copy[idx] = {
+            ...copy[idx],
             parts,
           } as any;
           console.log(
             "[ChatBot][UI] Updated most recent user message at index",
-            lastUserMessageIndex,
+            idx,
             "with altered text",
           );
         }

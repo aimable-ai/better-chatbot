@@ -18,6 +18,8 @@ import {
   clearLastGuardrailNames,
   getLastGuardrails,
   clearLastGuardrails,
+  getLastViolatedPolicies,
+  clearLastViolatedPolicies,
 } from "lib/ai/aimable-provider";
 import { setAimableOriginals } from "lib/ai/utils/aimable-files";
 
@@ -337,9 +339,48 @@ const handler = async (request: Request) => {
                   }
                   const guardrailsJson = getLastGuardrails();
                   if (guardrailsJson) {
-                    const violations = JSON.parse(guardrailsJson);
-                    if (Array.isArray(violations) && violations.length > 0) {
-                      (metadata as any).guardrails = violations;
+                    const violationsRaw = JSON.parse(guardrailsJson);
+                    if (
+                      Array.isArray(violationsRaw) &&
+                      violationsRaw.length > 0
+                    ) {
+                      const violations = violationsRaw
+                        .map((v: any) => {
+                          const name = v?.name;
+                          // Collect any human-readable policy texts if present
+                          const violatedPolicies = Array.isArray(
+                            v?.violated_policies,
+                          )
+                            ? v.violated_policies
+                            : [];
+                          const policyTexts: string[] = [];
+                          for (const p of violatedPolicies) {
+                            const t = p?.text ?? p?.message ?? p?.reason;
+                            if (typeof t === "string" && t.trim().length > 0) {
+                              policyTexts.push(t.trim());
+                            }
+                          }
+                          const reason =
+                            policyTexts.length > 0
+                              ? policyTexts.join("\n\n")
+                              : undefined;
+                          if (typeof name === "string") {
+                            return { name, reason };
+                          }
+                          return null;
+                        })
+                        .filter(Boolean);
+                      if (violations.length > 0) {
+                        (metadata as any).guardrails = violations;
+                      }
+                    }
+                  }
+                  // Capture violated policies separately
+                  const violatedPoliciesJson = getLastViolatedPolicies();
+                  if (violatedPoliciesJson) {
+                    const policies = JSON.parse(violatedPoliciesJson);
+                    if (Array.isArray(policies) && policies.length > 0) {
+                      (metadata as any).violatedPolicies = policies;
                     }
                   }
                   // Capture altered input for the user message
@@ -465,6 +506,8 @@ const handler = async (request: Request) => {
     if (guardrailNamesJson) clearLastGuardrailNames();
     const guardrailsJson = getLastGuardrails();
     if (guardrailsJson) clearLastGuardrails();
+    const violatedPoliciesJson = getLastViolatedPolicies();
+    if (violatedPoliciesJson) clearLastViolatedPolicies();
 
     // Schedule flush of telemetry after request finishes (serverless-safe)
     after(async () => await langfuseSpanProcessor.forceFlush());

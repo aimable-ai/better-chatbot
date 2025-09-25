@@ -13,6 +13,7 @@ export type ChatMetadata = {
   trusted?: boolean;
   guardrailNames?: string[]; // names like "CompetitorCheck" shown after stream completion
   guardrails?: { name: string; reason?: string }[]; // full violations for tooltip
+  violatedPolicies?: any[]; // raw violated_policies from Aimable proxy
 };
 
 export type ChatModel = {
