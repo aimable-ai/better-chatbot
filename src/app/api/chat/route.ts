@@ -67,7 +67,8 @@ import {
 import { trace } from "@opentelemetry/api";
 import { langfuseSpanProcessor } from "../../../instrumentation";
 
-const logger = globalLogger.withDefaults({
+// Attach a base logger for this route; per-request we will further enrich with user context once session is resolved.
+const baseLogger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
 });
 
@@ -76,6 +77,14 @@ const handler = async (request: Request) => {
     const json = await request.json();
 
     const session = await getSession();
+    console.log(session.user.email);
+
+    // Enrich logger with user context (avoid PII beyond stable identifiers)
+    const logger =
+      baseLogger.withTag?.(
+        // If consola version exposes withTag use it, else fallback to baseLogger and prepend user info manually
+        "user",
+      ) || baseLogger;
 
     if (!session?.user.id) {
       return new Response("Unauthorized", { status: 401 });
@@ -97,12 +106,9 @@ const handler = async (request: Request) => {
       const text = (textPart as any)?.text;
       return typeof text === "string" ? text : undefined;
     })();
-    updateActiveObservation({ input: inputText });
-    updateActiveTrace({
-      name: "my-ai-sdk-trace",
-      sessionId: id,
-      userId: session.user.id,
+    updateActiveObservation({
       input: inputText,
+      metadata: { userId: session.user.email },
     });
 
     // Extract attachments and uploaded_files from message metadata
@@ -281,7 +287,6 @@ const handler = async (request: Request) => {
         if (traceId) tracingHeaders["X-Trace-Id"] = traceId;
         if (spanId) tracingHeaders["X-Parent-Span-Id"] = spanId;
 
-        console.log("TraceId", getActiveTraceId(), "spanId", getActiveSpanId());
         const result = streamText({
           headers: tracingHeaders,
           model,
@@ -513,7 +518,7 @@ const handler = async (request: Request) => {
     after(async () => await langfuseSpanProcessor.forceFlush());
     return response;
   } catch (error: any) {
-    logger.error(error);
+    baseLogger.error(error);
     // Ensure telemetry is flushed on error paths as well
     after(async () => await langfuseSpanProcessor.forceFlush());
     return Response.json({ message: error.message }, { status: 500 });
