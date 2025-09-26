@@ -16,6 +16,7 @@ import {
   HammerIcon,
   EllipsisIcon,
 } from "lucide-react";
+import { ShieldCheck, Globe2 } from "lucide-react"; // icons for model trust badge
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
 import { Button } from "ui/button";
 import { Markdown } from "./markdown";
@@ -350,6 +351,42 @@ export const AssistMessagePart = memo(function AssistMessagePart({
       .unwrap();
   };
 
+  // Model trust badge (trusted vs general)
+  const ModelTrustBadge = useCallback(() => {
+    if (metadata?.trusted === undefined) return null;
+    const isTrusted = metadata.trusted === true;
+    const base =
+      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border shadow-sm select-none";
+    return (
+      <span
+        className={cn(
+          base,
+          isTrusted
+            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+            : "bg-muted text-muted-foreground border-border",
+        )}
+        aria-label={
+          isTrusted ? "Trusted model response" : "General model response"
+        }
+        title={
+          isTrusted
+            ? "Response generated with a Trusted model"
+            : "Response generated with a General model"
+        }
+        data-testid="model-trust-badge"
+      >
+        {isTrusted ? (
+          <ShieldCheck className="size-3" />
+        ) : (
+          <Globe2 className="size-3" />
+        )}
+        <span className="tracking-wide font-semibold">
+          {isTrusted ? "Trusted" : "General"}
+        </span>
+      </span>
+    );
+  }, [metadata?.trusted]);
+
   return (
     <div
       className={cn(
@@ -366,7 +403,8 @@ export const AssistMessagePart = memo(function AssistMessagePart({
         <Markdown>{part.text}</Markdown>
       </div>
       {showActions && (
-        <div className="flex w-full items-center">
+        <div className="flex w-full items-center gap-1">
+          <ModelTrustBadge />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -485,15 +523,7 @@ export const AssistMessagePart = memo(function AssistMessagePart({
                                     </span>
                                   )}
                               </div>
-                              {metadata?.trusted === true ? (
-                                <span className="text-green-600 font-semibold w-[200px] relative right-[-30px] top-[-26px]">
-                                  TRUSTED
-                                </span>
-                              ) : metadata?.trusted === false ? (
-                                <span className="font-semibold w-[200px] relative right-[20px] top-[-26px]">
-                                  GENERAL MODEL
-                                </span>
-                              ) : null}
+                              <ModelTrustBadge />
                             </div>
                           </div>
                         </div>
