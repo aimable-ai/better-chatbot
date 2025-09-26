@@ -77,7 +77,6 @@ const handler = async (request: Request) => {
     const json = await request.json();
 
     const session = await getSession();
-    console.log(session.user.email);
 
     // Enrich logger with user context (avoid PII beyond stable identifiers)
     const logger =
@@ -108,7 +107,11 @@ const handler = async (request: Request) => {
     })();
     updateActiveObservation({
       input: inputText,
-      metadata: { userId: session.user.email },
+      metadata: {
+        userName: session.user.name,
+        userId: session.user.id,
+        userEmail: session.user.email,
+      },
     });
 
     // Extract attachments and uploaded_files from message metadata
