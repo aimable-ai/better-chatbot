@@ -458,7 +458,8 @@ export const AssistMessagePart = memo(function AssistMessagePart({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-3! p-4! opacity-0 group-hover/message:opacity-100 transition-opacity duration-300"
+                  // Always show ellipsis button (was hidden behind opacity-0 + hover)
+                  className="size-3! p-4! transition-opacity duration-300 text-muted-foreground hover:text-foreground"
                 >
                   <EllipsisIcon />
                 </Button>
