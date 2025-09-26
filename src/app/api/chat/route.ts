@@ -105,8 +105,11 @@ const handler = async (request: Request) => {
       const text = (textPart as any)?.text;
       return typeof text === "string" ? text : undefined;
     })();
+
     updateActiveObservation({
       input: inputText,
+    });
+    updateActiveTrace({
       metadata: {
         userName: session.user.name,
         userId: session.user.id,
