@@ -98,13 +98,13 @@ const handler = async (request: Request) => {
       mentions = [],
     } = chatApiSchemaRequestBodySchema.parse(json);
 
-    const _inputText = (() => {
-      const textPart = message.parts.find(
-        (part) => (part as any).type === "text",
-      );
-      const text = (textPart as any)?.text;
-      return typeof text === "string" ? text : undefined;
-    })();
+    // const _inputText = (() => {
+    //   const textPart = message.parts.find(
+    //     (part) => (part as any).type === "text",
+    //   );
+    //   const text = (textPart as any)?.text;
+    //   return typeof text === "string" ? text : undefined;
+    // })();
 
     // updateActiveObservation({
     //   input: inputText,
