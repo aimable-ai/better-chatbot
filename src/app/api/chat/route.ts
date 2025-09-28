@@ -109,13 +109,13 @@ const handler = async (request: Request) => {
     // updateActiveObservation({
     //   input: inputText,
     // });
-    // updateActiveTrace({
-    //   metadata: {
-    //     userName: session.user.name,
-    //     userId: session.user.id,
-    //     userEmail: session.user.email,
-    //   },
-    // });
+    updateActiveTrace({
+      metadata: {
+        userName: session.user.name,
+        userId: session.user.id,
+        userEmail: session.user.email,
+      },
+    });
 
     // Extract attachments and uploaded_files from message metadata
     const attachments = (message.metadata as any)?.attachments || [];
