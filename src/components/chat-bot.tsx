@@ -43,6 +43,7 @@ import dynamic from "next/dynamic";
 import { useMounted } from "@/hooks/use-mounted";
 import { getStorageManager } from "lib/browser-stroage";
 import { AnimatePresence, motion } from "framer-motion";
+import React from "react";
 
 type Props = {
   threadId: string;
@@ -454,7 +455,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
                   Array.isArray(clientFiles) &&
                   clientFiles.length > 0;
                 return (
-                  <>
+                  <React.Fragment key={message.id}>
                     {showInlinePreview && (
                       <div className="w-full mx-auto max-w-3xl px-6 relative">
                         <div className="px-5 pt-2 flex justify-end">
@@ -495,7 +496,6 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
                       threadId={threadId}
                       messageIndex={index}
                       prevMessage={messages[index - 1]}
-                      key={message.id}
                       message={message}
                       status={status}
                       addToolResult={addToolResult}
@@ -512,7 +512,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
                           : ""
                       }
                     />
-                  </>
+                  </React.Fragment>
                 );
               })}
               {space && (

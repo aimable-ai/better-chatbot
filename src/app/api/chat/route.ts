@@ -98,7 +98,7 @@ const handler = async (request: Request) => {
       mentions = [],
     } = chatApiSchemaRequestBodySchema.parse(json);
 
-    const inputText = (() => {
+    const _inputText = (() => {
       const textPart = message.parts.find(
         (part) => (part as any).type === "text",
       );
@@ -106,16 +106,16 @@ const handler = async (request: Request) => {
       return typeof text === "string" ? text : undefined;
     })();
 
-    updateActiveObservation({
-      input: inputText,
-    });
-    updateActiveTrace({
-      metadata: {
-        userName: session.user.name,
-        userId: session.user.id,
-        userEmail: session.user.email,
-      },
-    });
+    // updateActiveObservation({
+    //   input: inputText,
+    // });
+    // updateActiveTrace({
+    //   metadata: {
+    //     userName: session.user.name,
+    //     userId: session.user.id,
+    //     userEmail: session.user.email,
+    //   },
+    // });
 
     // Extract attachments and uploaded_files from message metadata
     const attachments = (message.metadata as any)?.attachments || [];
