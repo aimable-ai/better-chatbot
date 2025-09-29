@@ -114,6 +114,7 @@ const handler = async (request: Request) => {
         userName: session.user.name,
         userId: session.user.id,
         userEmail: session.user.email,
+        // type: "chat-message",
       },
     });
 
@@ -292,6 +293,7 @@ const handler = async (request: Request) => {
         const spanId = getActiveSpanId();
         if (traceId) tracingHeaders["X-Trace-Id"] = traceId;
         if (spanId) tracingHeaders["X-Parent-Span-Id"] = spanId;
+        tracingHeaders["X-Request-Type"] = "chat-message";
 
         const result = streamText({
           headers: tracingHeaders,

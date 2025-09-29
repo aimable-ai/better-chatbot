@@ -37,6 +37,9 @@ export async function POST(request: Request) {
     );
 
     const result = streamText({
+      headers: {
+        "X-Request-Type": "create-thread-title",
+      },
       model: customModelProvider.getModel(chatModel),
       system: CREATE_THREAD_TITLE_PROMPT,
       experimental_transform: smoothStream({ chunking: "word" }),
