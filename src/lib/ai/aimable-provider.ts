@@ -1,5 +1,6 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { collectUploadedFiles } from "./utils/aimable-files";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 /**
  * Custom Aimable provider that captures response headers, specifically x-routing-details
@@ -73,6 +74,18 @@ export function createAimableProvider({
             "Content-Type": "application/json",
           } as Record<string, string>;
 
+          // Inject request-type and user name headers if set by server-side context
+          try {
+            const reqType = getCurrentRequestType?.();
+            if (reqType && !headers["X-Request-Type"]) {
+              headers["X-Request-Type"] = reqType;
+            }
+            const userName = getCurrentUserName?.();
+            if (userName && !headers["X-Name"]) {
+              headers["X-Name"] = userName;
+            }
+          } catch {}
+
           // Log outbound request only (no response)
           const url = urlString;
           const body = JSON.stringify(payload);
@@ -86,6 +99,27 @@ export function createAimableProvider({
             ...init,
             headers,
             body,
+          };
+        }
+      } catch {}
+
+      // Ensure headers are applied even if not rebuilding for Aimable URL
+      try {
+        const reqTypeFinal = getCurrentRequestType?.();
+        const userNameFinal = getCurrentUserName?.();
+        if (reqTypeFinal || userNameFinal) {
+          const finalHeaders = {
+            ...(rebuiltInit?.headers as any),
+          } as Record<string, string>;
+          if (reqTypeFinal && !finalHeaders["X-Request-Type"]) {
+            finalHeaders["X-Request-Type"] = reqTypeFinal;
+          }
+          if (userNameFinal && !finalHeaders["X-Name"]) {
+            finalHeaders["X-Name"] = userNameFinal;
+          }
+          rebuiltInit = {
+            ...rebuiltInit,
+            headers: finalHeaders,
           };
         }
       } catch {}
@@ -320,4 +354,37 @@ export function getLastViolatedPolicies(): string | null {
 }
 export function clearLastViolatedPolicies(): void {
   delete (globalThis as any).__aimableLastViolatedPolicies;
+}
+
+// Simple async local storage to track current request type in server context
+const requestTypeStorage = new AsyncLocalStorage<string | undefined>();
+const userNameStorage = new AsyncLocalStorage<string | undefined>();
+
+export function withRequestType<T>(
+  type: string,
+  fn: () => Promise<T>,
+): Promise<T>;
+export function withRequestType<T>(type: string, fn: () => T): T;
+export function withRequestType<T>(
+  type: string,
+  fn: () => T | Promise<T>,
+): T | Promise<T> {
+  return requestTypeStorage.run(type, fn);
+}
+
+export function getCurrentRequestType(): string | undefined {
+  return requestTypeStorage.getStore();
+}
+
+export function withUserName<T>(name: string, fn: () => Promise<T>): Promise<T>;
+export function withUserName<T>(name: string, fn: () => T): T;
+export function withUserName<T>(
+  name: string,
+  fn: () => T | Promise<T>,
+): T | Promise<T> {
+  return userNameStorage.run(name, fn);
+}
+
+export function getCurrentUserName(): string | undefined {
+  return userNameStorage.getStore();
 }

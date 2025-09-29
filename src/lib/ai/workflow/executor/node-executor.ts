@@ -1,4 +1,5 @@
 import { customModelProvider } from "lib/ai/models";
+import { withRequestType } from "lib/ai/aimable-provider";
 import {
   ConditionNodeData,
   OutputNodeData,
@@ -90,54 +91,55 @@ export const outputNodeExecutor: NodeExecutor<OutputNodeData> = ({
 export const llmNodeExecutor: NodeExecutor<LLMNodeData> = async ({
   node,
   state,
-}) => {
-  const model = customModelProvider.getModel(node.model);
+}) =>
+  withRequestType("workflow", async () => {
+    const model = customModelProvider.getModel(node.model);
 
-  // Convert TipTap JSON messages to AI SDK format, resolving mentions to actual data
-  const messages: Omit<UIMessage, "id">[] = node.messages.map((message) =>
-    convertTiptapJsonToAiMessage({
-      role: message.role,
-      getOutput: state.getOutput, // Provides access to previous node outputs
-      json: message.content,
-    }),
-  );
+    // Convert TipTap JSON messages to AI SDK format, resolving mentions to actual data
+    const messages: Omit<UIMessage, "id">[] = node.messages.map((message) =>
+      convertTiptapJsonToAiMessage({
+        role: message.role,
+        getOutput: state.getOutput, // Provides access to previous node outputs
+        json: message.content,
+      }),
+    );
 
-  const isTextResponse =
-    node.outputSchema.properties?.answer?.type === "string";
+    const isTextResponse =
+      node.outputSchema.properties?.answer?.type === "string";
 
-  state.setInput(node.id, {
-    chatModel: node.model,
-    messages,
-    responseFormat: isTextResponse ? "text" : "object",
-  });
+    state.setInput(node.id, {
+      chatModel: node.model,
+      messages,
+      responseFormat: isTextResponse ? "text" : "object",
+    });
 
-  if (isTextResponse) {
-    const response = await generateText({
+    if (isTextResponse) {
+      const response = await generateText({
+        model,
+        messages: convertToModelMessages(messages),
+      });
+      return {
+        output: {
+          totalTokens: response.usage.totalTokens,
+          answer: response.text,
+        },
+      };
+    }
+
+    const response = await generateObject({
       model,
       messages: convertToModelMessages(messages),
+      schema: jsonSchemaToZod(node.outputSchema.properties.answer),
+      maxRetries: 3,
     });
+
     return {
       output: {
         totalTokens: response.usage.totalTokens,
-        answer: response.text,
+        answer: response.object,
       },
     };
-  }
-
-  const response = await generateObject({
-    model,
-    messages: convertToModelMessages(messages),
-    schema: jsonSchemaToZod(node.outputSchema.properties.answer),
-    maxRetries: 3,
   });
-
-  return {
-    output: {
-      totalTokens: response.usage.totalTokens,
-      answer: response.object,
-    },
-  };
-};
 
 /**
  * Condition Node Executor
@@ -184,96 +186,97 @@ export const conditionNodeExecutor: NodeExecutor<ConditionNodeData> = async ({
 export const toolNodeExecutor: NodeExecutor<ToolNodeData> = async ({
   node,
   state,
-}) => {
-  const result: {
-    input: any;
-    output: any;
-  } = {
-    input: undefined,
-    output: undefined,
-  };
-
-  if (!node.tool) throw new Error("Tool not found");
-
-  // Handle parameter generation
-  if (!node.tool?.parameterSchema) {
-    // Tool doesn't need parameters
-    result.input = {
-      parameter: undefined,
+}) =>
+  withRequestType("workflow", async () => {
+    const result: {
+      input: any;
+      output: any;
+    } = {
+      input: undefined,
+      output: undefined,
     };
-  } else {
-    // Use LLM to generate tool parameters from the provided message
-    const prompt: string | undefined = node.message
-      ? toAny(
-          convertTiptapJsonToAiMessage({
-            role: "user",
-            getOutput: state.getOutput, // Access to previous node outputs
-            json: node.message,
-          }),
-        ).parts[0]?.text
-      : undefined;
 
-    const response = await generateText({
-      model: customModelProvider.getModel(node.model),
-      toolChoice: "required", // Force the model to call the tool
-      prompt: prompt || "",
-      tools: {
-        [node.tool.id]: {
-          description: node.tool.description,
-          inputSchema: jsonSchemaToZod(node.tool.parameterSchema),
+    if (!node.tool) throw new Error("Tool not found");
+
+    // Handle parameter generation
+    if (!node.tool?.parameterSchema) {
+      // Tool doesn't need parameters
+      result.input = {
+        parameter: undefined,
+      };
+    } else {
+      // Use LLM to generate tool parameters from the provided message
+      const prompt: string | undefined = node.message
+        ? toAny(
+            convertTiptapJsonToAiMessage({
+              role: "user",
+              getOutput: state.getOutput, // Access to previous node outputs
+              json: node.message,
+            }),
+          ).parts[0]?.text
+        : undefined;
+
+      const response = await generateText({
+        model: customModelProvider.getModel(node.model),
+        toolChoice: "required", // Force the model to call the tool
+        prompt: prompt || "",
+        tools: {
+          [node.tool.id]: {
+            description: node.tool.description,
+            inputSchema: jsonSchemaToZod(node.tool.parameterSchema),
+          },
         },
-      },
-    });
+      });
 
-    result.input = {
-      parameter: response.toolCalls.find((call) => call.input)?.input,
-      prompt,
-    };
-  }
-
-  // Execute the tool based on its type
-  if (node.tool.type == "mcp-tool") {
-    const toolResult = (await mcpClientsManager.toolCall(
-      node.tool.serverId,
-      node.tool.id,
-      result.input.parameter,
-    )) as any;
-    if (toolResult.isError) {
-      throw new Error(
-        toolResult.error?.message ||
-          toolResult.error?.name ||
-          JSON.stringify(toolResult),
-      );
+      result.input = {
+        parameter: response.toolCalls.find((call) => call.input)?.input,
+        prompt,
+      };
     }
-    result.output = {
-      tool_result: toolResult,
-    };
-  } else if (node.tool.type == "app-tool") {
-    const executor =
-      node.tool.id == DefaultToolName.WebContent
-        ? exaContentsToolForWorkflow.execute
-        : node.tool.id == DefaultToolName.WebSearch
-          ? exaSearchToolForWorkflow.execute
-          : () => "Unknown tool";
 
-    const toolResult = await executor?.(result.input.parameter, {
-      messages: [],
-      toolCallId: "",
-    });
-    result.output = {
-      tool_result: toolResult,
-    };
-  } else {
-    // Placeholder for future tool types
-    result.output = {
-      tool_result: {
-        error: `Not implemented "${toAny(node.tool)?.type}"`,
-      },
-    };
-  }
+    // Execute the tool based on its type
+    if (node.tool.type == "mcp-tool") {
+      const toolResult = (await mcpClientsManager.toolCall(
+        node.tool.serverId,
+        node.tool.id,
+        result.input.parameter,
+      )) as any;
+      if (toolResult.isError) {
+        throw new Error(
+          toolResult.error?.message ||
+            toolResult.error?.name ||
+            JSON.stringify(toolResult),
+        );
+      }
+      result.output = {
+        tool_result: toolResult,
+      };
+    } else if (node.tool.type == "app-tool") {
+      const executor =
+        node.tool.id == DefaultToolName.WebContent
+          ? exaContentsToolForWorkflow.execute
+          : node.tool.id == DefaultToolName.WebSearch
+            ? exaSearchToolForWorkflow.execute
+            : () => "Unknown tool";
 
-  return result;
-};
+      const toolResult = await executor?.(result.input.parameter, {
+        messages: [],
+        toolCallId: "",
+      });
+      result.output = {
+        tool_result: toolResult,
+      };
+    } else {
+      // Placeholder for future tool types
+      result.output = {
+        tool_result: {
+          error: `Not implemented "${toAny(node.tool)?.type}"`,
+        },
+      };
+    }
+
+    return result;
+  });
 
 /**
  * Resolves HttpValue to actual string value

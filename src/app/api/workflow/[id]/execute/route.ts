@@ -5,6 +5,7 @@ import { encodeWorkflowEvent } from "lib/ai/workflow/shared.workflow";
 import logger from "logger";
 import { colorize } from "consola/utils";
 import { safeJSONParse, toAny } from "lib/utils";
+import { withUserName } from "lib/ai/aimable-provider";
 
 export async function POST(
   request: Request,
@@ -73,20 +74,22 @@ export async function POST(
         controller.close();
       });
 
-      // Start the workflow
-      app
-        .run(
-          { query },
-          {
-            disableHistory: true,
-            timeout: 1000 * 60 * 5,
-          },
-        )
-        .then((result) => {
-          if (!result.isOk) {
-            logger.error("Workflow execution error:", result.error);
-          }
-        });
+      // Start the workflow with user name context for provider headers
+      withUserName(session.user.name || "", () => {
+        app
+          .run(
+            { query },
+            {
+              disableHistory: true,
+              timeout: 1000 * 60 * 5,
+            },
+          )
+          .then((result) => {
+            if (!result.isOk) {
+              logger.error("Workflow execution error:", result.error);
+            }
+          });
+      });
     },
   });
 
