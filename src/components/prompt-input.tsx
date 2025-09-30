@@ -112,7 +112,6 @@ export default function PromptInput({
   // Global file drag overlay state (covers chat area)
   // Drag overlay visibility (initially hidden until a real file drag starts)
   const [isDragging, setIsDragging] = useState(false);
-  const [dragFileCount, setDragFileCount] = useState<number | null>(null);
   const dragCounterRef = useRef(0);
 
   useEffect(() => {
@@ -391,16 +390,12 @@ export default function PromptInput({
       if (!isFileDrag(e.dataTransfer)) return;
       e.preventDefault();
       dragCounterRef.current += 1;
-      const items = e.dataTransfer?.items;
-      if (items && items.length) setDragFileCount(items.length);
       if (!isDragging) setIsDragging(true);
     };
 
     const handleDragOver = (e: DragEvent) => {
       if (!isFileDrag(e.dataTransfer)) return;
       e.preventDefault();
-      const items = e.dataTransfer?.items;
-      if (items && items.length) setDragFileCount(items.length);
     };
 
     const handleDragLeave = (e: DragEvent) => {
@@ -408,7 +403,6 @@ export default function PromptInput({
       dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
       if (dragCounterRef.current === 0) {
         setIsDragging(false);
-        setDragFileCount(null);
       }
     };
 
@@ -418,7 +412,6 @@ export default function PromptInput({
       const files = e.dataTransfer?.files;
       dragCounterRef.current = 0;
       setIsDragging(false);
-      setDragFileCount(null);
       uploadFiles(files ?? null);
     };
 
@@ -427,7 +420,6 @@ export default function PromptInput({
       if (e.key === "Escape" && isDragging) {
         setIsDragging(false);
         dragCounterRef.current = 0;
-        setDragFileCount(null);
       }
     };
 
@@ -468,53 +460,6 @@ export default function PromptInput({
   useEffect(() => {
     if (!editorRef.current) return;
   }, [editorRef.current]);
-
-  const dragOverlay =
-    typeof window !== "undefined" && isDragging
-      ? createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="File upload drop area"
-            className="fixed inset-0 z-[999] flex items-center justify-center px-4 sm:px-8"
-            style={{ left: "var(--sidebar-width, 0px)" }}
-            onClick={() => {
-              // Allow clicking the shaded area to open file picker
-              handleSelectFiles();
-            }}
-          >
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-background/60 dark:bg-background/50 backdrop-blur-md animate-in fade-in duration-150" />
-            {/* Drop zone card */}
-            <div className="relative w-full max-w-sm rounded-2xl border  bg-gradient-to-br from-background/80 via-background/60 to-background/80 shadow-xl p-6 sm:p-8 flex flex-col items-center gap-4 text-center select-none">
-              <div className="relative flex items-center justify-center">
-                <div className="absolute -inset-3 rounded-full " />
-                <img
-                  src="/Aimable Icon.svg"
-                  alt="App logo"
-                  className="w-40 h-40 object-contain"
-                  draggable={false}
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-sm sm:text-base">
-                  {dragFileCount && dragFileCount > 1
-                    ? `Drop ${dragFileCount} files to upload`
-                    : "Drop file to upload"}
-                </p>
-
-                <p className="sr-only">
-                  Press Escape to cancel file upload overlay.
-                </p>
-              </div>
-              <div className="absolute inset-0 rounded-2xl pointer-events-none">
-                <div className="absolute inset-0 rounded-2xl border-2 border-dashed border-border animate-pulse" />
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )
-      : null;
 
   return (
     <>
@@ -795,7 +740,24 @@ export default function PromptInput({
           </fieldset>
         </div>
       </div>
-      {dragOverlay}
+      {isDragging && (
+        <div className="pointer-events-none fixed inset-0 z-[120] flex items-center justify-center">
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
+          <div className="relative text-center px-6 flex flex-col items-center">
+            <img
+              src={"/Aimable Icon.svg"}
+              alt="Aimable"
+              className="h-24 w-24 mb-2 animate-[fadeIn_0.25s_ease]"
+            />
+            <div className="text-3xl font-semibold tracking-tight text-neutral-900">
+              Add anything
+            </div>
+            <div className="mt-3 text-sm text-neutral-600 max-w-sm">
+              Drop any file here to add it to the conversation
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
