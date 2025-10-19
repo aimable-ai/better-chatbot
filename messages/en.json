@@ -689,6 +689,12 @@
       "failedToUpdateRole": "Failed to update role",
       "cannotUpdateOwnRole": "You cannot update your own role",
       "roleUpdatedSuccessfullyTo": "User role updated successfully to {role}"
+    },
+    "UserCreate": {
+      "userAlreadyExists": "User with this email already exists",
+      "userCreatedSuccessfully": "User {name} created successfully with {role} role",
+      "failedToCreateUser": "Failed to create user",
+      "unknownError": "Unknown error occurred"
     }
   },
   "MCP": {

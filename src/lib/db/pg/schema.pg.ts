@@ -320,6 +320,80 @@ export const McpOAuthSessionSchema = pgTable(
   ],
 );
 
+// ==========================
+// Workspaces (Spaces)
+// ==========================
+
+export const SpaceSchema = pgTable("space", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  name: text("name").notNull(),
+  status: varchar("status", {
+    enum: ["active", "archived", "deleted"],
+  })
+    .notNull()
+    .default("active"),
+  archivedAt: timestamp("archived_at"),
+  archivedBy: uuid("archived_by").references(() => UserSchema.id),
+  deletedAt: timestamp("deleted_at"),
+  deletedBy: uuid("deleted_by").references(() => UserSchema.id),
+  createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const SpaceMemberSchema = pgTable(
+  "space_member",
+  {
+    id: uuid("id").primaryKey().notNull().defaultRandom(),
+    spaceId: uuid("space_id")
+      .notNull()
+      .references(() => SpaceSchema.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => UserSchema.id, { onDelete: "cascade" }),
+    role: varchar("role", {
+      enum: ["owner", "admin", "curator", "auditor", "user"],
+    })
+      .notNull()
+      .default("user"),
+    createdAt: timestamp("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (t) => [
+    unique().on(t.spaceId, t.userId),
+    index("space_member_space_id_idx").on(t.spaceId),
+    index("space_member_user_id_idx").on(t.userId),
+  ],
+);
+
+export const SpaceInviteSchema = pgTable(
+  "space_invite",
+  {
+    id: uuid("id").primaryKey().notNull().defaultRandom(),
+    spaceId: uuid("space_id")
+      .notNull()
+      .references(() => SpaceSchema.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: varchar("role", {
+      enum: ["admin", "curator", "auditor", "user"],
+    }).notNull(),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (t) => [
+    unique().on(t.spaceId, t.email),
+    index("space_invite_space_id_idx").on(t.spaceId),
+    index("space_invite_email_idx").on(t.email),
+  ],
+);
+
+export type SpaceEntity = typeof SpaceSchema.$inferSelect;
+export type SpaceMemberEntity = typeof SpaceMemberSchema.$inferSelect;
+export type SpaceInviteEntity = typeof SpaceInviteSchema.$inferSelect;
+
 export type McpServerEntity = typeof McpServerSchema.$inferSelect;
 export type ChatThreadEntity = typeof ChatThreadSchema.$inferSelect;
 export type ChatMessageEntity = typeof ChatMessageSchema.$inferSelect;

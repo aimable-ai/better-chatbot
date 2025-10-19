@@ -39,6 +39,12 @@ const options = {
     nextCookies(),
   ],
   baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_BASE_URL,
+  trustedOrigins: [
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
+    "http://localhost:8081",
+  ],
   user: {
     changeEmail: {
       enabled: true,

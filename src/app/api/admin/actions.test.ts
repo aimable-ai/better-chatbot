@@ -41,4 +41,24 @@ describe("Admin Actions - Business Logic", () => {
       expect(role).toBe(USER_ROLES.ADMIN);
     });
   });
+
+  describe("Create User Logic", () => {
+    it("should use default role when none provided for new user", () => {
+      const DEFAULT_USER_ROLE = USER_ROLES.USER;
+      const roleInput = undefined;
+
+      const role = roleInput || DEFAULT_USER_ROLE;
+
+      expect(role).toBe(USER_ROLES.USER);
+    });
+
+    it("should use provided role when creating new user", () => {
+      const DEFAULT_USER_ROLE = USER_ROLES.USER;
+      const roleInput = USER_ROLES.EDITOR;
+
+      const role = roleInput || DEFAULT_USER_ROLE;
+
+      expect(role).toBe(USER_ROLES.EDITOR);
+    });
+  });
 });

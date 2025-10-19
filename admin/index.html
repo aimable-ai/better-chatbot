@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Better Chatbot Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: #1a1a1a;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .endpoint-section {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .endpoint-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .endpoint-header:hover {
+            background: #e9ecef;
+        }
+
+        .endpoint-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .endpoint-methods {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .method-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .method-get {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .method-post {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .method-put {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .method-patch {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .method-delete {
+            background: #f5c6cb;
+            color: #721c24;
+        }
+
+        .endpoint-content {
+            padding: 1.5rem;
+            display: none;
+        }
+
+        .endpoint-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .form-section h4 {
+            margin-bottom: 1rem;
+            color: #495057;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .response-area {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+
+        .response-area h4 {
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+
+        .response-content {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .status-success {
+            color: #28a745;
+        }
+
+        .status-error {
+            color: #dc3545;
+        }
+
+        .status-info {
+            color: #17a2b8;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .auth-status {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .auth-status.authenticated {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .auth-status.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .toggle-icon {
+            transition: transform 0.2s;
+        }
+
+        .toggle-icon.expanded {
+            transform: rotate(180deg);
+        }
+
+        .endpoint-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .quick-action {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .quick-action h4 {
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+
+        .quick-action p {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Login Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .login-form input {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .login-form button {
+            padding: 0.75rem;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .login-form button:hover {
+            background: #0056b3;
+        }
+
+        .login-form button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .login-error {
+            color: #dc3545;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .login-success {
+            color: #28a745;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Better Chatbot Admin Panel</h1>
+        <button class="btn btn-primary" onclick="openLoginModal()">Login</button>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Admin Login</h2>
+                <span class="close" onclick="closeLoginModal()">&times;</span>
+            </div>
+            <form class="login-form" onsubmit="handleLogin(event)">
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button type="submit" id="loginButton">Login</button>
+                <div id="loginMessage"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="authStatus" class="auth-status">
+            <h3>Authentication Status</h3>
+            <p>Checking authentication...</p>
+            <div
+                style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+                <strong>⚠️ Important:</strong> You must be logged in to the main application first!
+                <br>1. Go to <a href="/sign-in" target="_blank">/sign-in</a> and log in
+                <br>2. Then return to this admin panel
+                <br>3. The admin tool uses your session cookies for authentication
+                <br><br>
+                <strong>🔧 Troubleshooting:</strong>
+                <br>• If you see "HTTP ERROR 500" - the server is running but you need to log in
+                <br>• If you see "307 Redirect to /sign-in" - this is normal without authentication
+                <br>• After logging in, all API calls should work properly
+            </div>
+        </div>
+
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('quickActions')">
+                <div class="endpoint-title">Quick Actions</div>
+                <div class="toggle-icon" id="toggle-quickActions">▼</div>
+            </div>
+            <div class="endpoint-content active" id="quickActions">
+                <div class="endpoint-grid">
+                    <div class="quick-action">
+                        <h4>Test Authentication</h4>
+                        <p>Verify your session is working</p>
+                        <button class="btn btn-primary" onclick="testAuth()">Test Auth</button>
+                    </div>
+                    <div class="quick-action">
+                        <h4>Get All Users</h4>
+                        <p>Fetch all users from the system</p>
+                        <button class="btn btn-primary" onclick="getAllUsers()">Get Users</button>
+                    </div>
+                    <div class="quick-action">
+                        <h4>Get All Agents</h4>
+                        <p>Fetch all agents</p>
+                        <button class="btn btn-primary" onclick="getAllAgents()">Get Agents</button>
+                    </div>
+                    <div class="quick-action">
+                        <h4>Get All Workflows</h4>
+                        <p>Fetch all workflows</p>
+                        <button class="btn btn-primary" onclick="getAllWorkflows()">Get Workflows</button>
+                    </div>
+                    <div class="quick-action">
+                        <h4>Test Space API</h4>
+                        <p>Test basic space operations</p>
+                        <button class="btn btn-primary" onclick="testSpaceAPI()">Test Space API</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('users')">
+                <div class="endpoint-title">User Management</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="method-badge method-post">POST</span>
+                    <span class="method-badge method-patch">PATCH</span>
+                    <span class="method-badge method-delete">DELETE</span>
+                </div>
+                <div class="toggle-icon" id="toggle-users">▼</div>
+            </div>
+            <div class="endpoint-content" id="users">
+                <!-- Create User Form -->
+                <div class="form-section">
+                    <h4>Create New User</h4>
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="createUserEmail" placeholder="user@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" id="createUserName" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password:</label>
+                        <input type="password" id="createUserPassword" placeholder="Minimum 8 characters" required
+                            minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label>Role:</label>
+                        <select id="createUserRole">
+                            <option value="user">User</option>
+                            <option value="editor">Editor</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-success" onclick="createUser()">Create User</button>
+                </div>
+
+                <!-- User Management Operations -->
+                <div class="form-section">
+                    <h4>User Management Operations</h4>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                        <button class="btn btn-primary" onclick="getAllUsers()">List All Users</button>
+                    </div>
+                    <div class="form-group">
+                        <label>User ID (for specific operations):</label>
+                        <input type="text" id="userId" placeholder="Enter user ID">
+                    </div>
+                    <div class="form-group">
+                        <label>User Data (JSON):</label>
+                        <textarea id="userData"
+                            placeholder='{"name": "John Doe", "email": "john@example.com", "role": "editor", "banned": false}'></textarea>
+                        <small style="color: #666; font-size: 0.8rem; margin-top: 0.5rem; display: block;">
+                            Supported fields: name, email, image, role (admin/editor/user), banned (true/false),
+                            banReason, newPassword
+                        </small>
+                    </div>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="getUserDetails()">Get User Details</button>
+                        <button class="btn btn-primary" onclick="updateUser()">Update User</button>
+                        <button class="btn btn-danger" onclick="deleteUser()">Delete User</button>
+                    </div>
+                </div>
+
+                <div id="userResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="userResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent Management -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('agents')">
+                <div class="endpoint-title">Agent Management</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="method-badge method-post">POST</span>
+                    <span class="method-badge method-patch">PATCH</span>
+                    <span class="method-badge method-delete">DELETE</span>
+                </div>
+                <div class="toggle-icon" id="toggle-agents">▼</div>
+            </div>
+            <div class="endpoint-content" id="agents">
+                <div class="form-group">
+                    <label>Agent ID (for specific operations):</label>
+                    <input type="text" id="agentId" placeholder="Enter agent ID">
+                </div>
+                <div class="form-group">
+                    <label>Query Parameters:</label>
+                    <input type="text" id="agentQuery" placeholder="type=assistant&limit=10">
+                </div>
+                <div class="form-group">
+                    <label>Agent Data (JSON):</label>
+                    <textarea id="agentData"
+                        placeholder='{"name": "My Agent", "description": "A helpful assistant", "type": "assistant"}'></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="getAgents()">Get Agents</button>
+                    <button class="btn btn-primary" onclick="getAgentById()">Get Agent by ID</button>
+                    <button class="btn btn-success" onclick="createAgent()">Create Agent</button>
+                    <button class="btn btn-primary" onclick="updateAgent()">Update Agent</button>
+                    <button class="btn btn-danger" onclick="deleteAgent()">Delete Agent</button>
+                </div>
+                <div id="agentResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="agentResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workflow Management -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('workflows')">
+                <div class="endpoint-title">Workflow Management</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="method-badge method-post">POST</span>
+                    <span class="method-badge method-patch">PATCH</span>
+                    <span class="method-badge method-delete">DELETE</span>
+                </div>
+                <div class="toggle-icon" id="toggle-workflows">▼</div>
+            </div>
+            <div class="endpoint-content" id="workflows">
+                <div class="form-group">
+                    <label>Workflow ID (for specific operations):</label>
+                    <input type="text" id="workflowId" placeholder="Enter workflow ID">
+                </div>
+                <div class="form-group">
+                    <label>Workflow Data (JSON):</label>
+                    <textarea id="workflowData"
+                        placeholder='{"name": "My Workflow", "description": "A useful workflow", "isPublished": false}'></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="getWorkflows()">Get Workflows</button>
+                    <button class="btn btn-primary" onclick="getWorkflowById()">Get Workflow by ID</button>
+                    <button class="btn btn-success" onclick="createWorkflow()">Create Workflow</button>
+                    <button class="btn btn-primary" onclick="updateWorkflow()">Update Workflow</button>
+                    <button class="btn btn-danger" onclick="deleteWorkflow()">Delete Workflow</button>
+                </div>
+                <div id="workflowResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="workflowResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MCP Management -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('mcp')">
+                <div class="endpoint-title">MCP Management</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="method-badge method-post">POST</span>
+                    <span class="method-badge method-patch">PATCH</span>
+                    <span class="method-badge method-delete">DELETE</span>
+                </div>
+                <div class="toggle-icon" id="toggle-mcp">▼</div>
+            </div>
+            <div class="endpoint-content" id="mcp">
+                <div class="form-group">
+                    <label>MCP ID (for specific operations):</label>
+                    <input type="text" id="mcpId" placeholder="Enter MCP ID">
+                </div>
+                <div class="form-group">
+                    <label>MCP Data (JSON):</label>
+                    <textarea id="mcpData"
+                        placeholder='{"name": "My MCP Server", "command": "python", "args": ["server.py"]}'></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="getMcpList()">Get MCP List</button>
+                    <button class="btn btn-primary" onclick="getMcpById()">Get MCP by ID</button>
+                    <button class="btn btn-success" onclick="createMcp()">Create MCP</button>
+                    <button class="btn btn-primary" onclick="updateMcp()">Update MCP</button>
+                    <button class="btn btn-danger" onclick="deleteMcp()">Delete MCP</button>
+                </div>
+                <div id="mcpResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="mcpResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spaces Management -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('spaces')">
+                <div class="endpoint-title">Spaces Management</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="method-badge method-post">POST</span>
+                    <span class="method-badge method-patch">PATCH</span>
+                    <span class="method-badge method-delete">DELETE</span>
+                </div>
+                <div class="toggle-icon" id="toggle-spaces">▼</div>
+            </div>
+            <div class="endpoint-content" id="spaces">
+                <div class="form-group">
+                    <label>Space ID (for specific operations):</label>
+                    <input type="text" id="spaceId" placeholder="Enter space ID">
+                </div>
+                <div class="form-group">
+                    <label>Space Data (JSON):</label>
+                    <textarea id="spaceData"
+                        placeholder='{"name": "My Space", "description": "A collaborative space"}'></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="getSpaces()">Get Spaces</button>
+                    <button class="btn btn-primary" onclick="getSpaceById()">Get Space by ID</button>
+                    <button class="btn btn-success" onclick="createSpace()">Create Space</button>
+                    <button class="btn btn-primary" onclick="updateSpace()">Update Space</button>
+                    <button class="btn btn-danger" onclick="deleteSpace()">Delete Space</button>
+                </div>
+
+                <!-- Lifecycle Management -->
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e9ecef;">
+                    <h4 style="margin-bottom: 1rem; color: #495057;">Lifecycle Management</h4>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-warning" onclick="archiveSpace()">Archive Space</button>
+                        <button class="btn btn-info" onclick="unarchiveSpace()">Restore Space</button>
+                        <button class="btn btn-secondary" onclick="getSpaceMembers()">Get Members</button>
+                        <button class="btn btn-secondary" onclick="getSpaceInvites()">Get Invites</button>
+                    </div>
+                </div>
+
+                <!-- Member Management -->
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e9ecef;">
+                    <h4 style="margin-bottom: 1rem; color: #495057;">Member Management</h4>
+                    <div class="form-group">
+                        <label>User ID (for member operations):</label>
+                        <input type="text" id="memberUserId" placeholder="Enter user ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Member Role:</label>
+                        <select id="memberRole">
+                            <option value="user">User</option>
+                            <option value="auditor">Auditor</option>
+                            <option value="curator">Curator</option>
+                            <option value="admin">Admin</option>
+                            <option value="owner">Owner</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="addSpaceMember()">Add Member</button>
+                        <button class="btn btn-primary" onclick="updateSpaceMember()">Update Member Role</button>
+                        <button class="btn btn-danger" onclick="removeSpaceMember()">Remove Member</button>
+                    </div>
+                </div>
+
+                <!-- Invite Management -->
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e9ecef;">
+                    <h4 style="margin-bottom: 1rem; color: #495057;">Invite Management</h4>
+                    <div class="form-group">
+                        <label>Email (for invite operations):</label>
+                        <input type="email" id="inviteEmail" placeholder="Enter email address">
+                    </div>
+                    <div class="form-group">
+                        <label>Invite Role:</label>
+                        <select id="inviteRole">
+                            <option value="user">User</option>
+                            <option value="auditor">Auditor</option>
+                            <option value="curator">Curator</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="createSpaceInvite()">Create Invite</button>
+                        <button class="btn btn-danger" onclick="deleteSpaceInvite()">Delete Invite</button>
+                    </div>
+                </div>
+
+                <div id="spaceResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="spaceResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Management -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('chat')">
+                <div class="endpoint-title">Chat Management</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="method-badge method-post">POST</span>
+                    <span class="method-badge method-patch">PATCH</span>
+                    <span class="method-badge method-delete">DELETE</span>
+                </div>
+                <div class="toggle-icon" id="toggle-chat">▼</div>
+            </div>
+            <div class="endpoint-content" id="chat">
+                <div class="form-group">
+                    <label>Chat Data (JSON):</label>
+                    <textarea id="chatData"
+                        placeholder='{"message": "Hello, how can you help me?", "model": "gpt-4"}'></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="getChatModels()">Get Chat Models</button>
+                    <button class="btn btn-success" onclick="sendChat()">Send Chat</button>
+                    <button class="btn btn-primary" onclick="getChatTitle()">Get Chat Title</button>
+                </div>
+                <div id="chatResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="chatResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Archive Management -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('archive')">
+                <div class="endpoint-title">Archive Management</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="method-badge method-post">POST</span>
+                    <span class="method-badge method-patch">PATCH</span>
+                    <span class="method-badge method-delete">DELETE</span>
+                </div>
+                <div class="toggle-icon" id="toggle-archive">▼</div>
+            </div>
+            <div class="endpoint-content" id="archive">
+                <div class="form-group">
+                    <label>Archive ID:</label>
+                    <input type="text" id="archiveId" placeholder="Enter archive ID">
+                </div>
+                <div class="form-group">
+                    <label>Item ID:</label>
+                    <input type="text" id="itemId" placeholder="Enter item ID">
+                </div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="getArchives()">Get Archives</button>
+                    <button class="btn btn-primary" onclick="getArchiveById()">Get Archive by ID</button>
+                    <button class="btn btn-primary" onclick="getArchiveItems()">Get Archive Items</button>
+                    <button class="btn btn-primary" onclick="getArchiveItem()">Get Archive Item</button>
+                </div>
+                <div id="archiveResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="archiveResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thread Management -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('thread')">
+                <div class="endpoint-title">Thread Management</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-get">GET</span>
+                    <span class="method-badge method-post">POST</span>
+                    <span class="method-badge method-patch">PATCH</span>
+                    <span class="method-badge method-delete">DELETE</span>
+                </div>
+                <div class="toggle-icon" id="toggle-thread">▼</div>
+            </div>
+            <div class="endpoint-content" id="thread">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="getThreads()">Get Threads</button>
+                </div>
+                <div id="threadResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="threadResponseContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cleanup Jobs -->
+        <div class="endpoint-section">
+            <div class="endpoint-header" onclick="toggleSection('cleanup')">
+                <div class="endpoint-title">Cleanup Jobs</div>
+                <div class="endpoint-methods">
+                    <span class="method-badge method-post">POST</span>
+                </div>
+                <div class="toggle-icon" id="toggle-cleanup">▼</div>
+            </div>
+            <div class="endpoint-content" id="cleanup">
+                <div class="form-group">
+                    <label>Cron Secret (for cleanup operations):</label>
+                    <input type="password" id="cronSecret" placeholder="Enter cron secret">
+                </div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-warning" onclick="runSpaceCleanup()">Run Space Cleanup</button>
+                </div>
+                <div id="cleanupResponse" class="response-area" style="display: none;">
+                    <h4>Response:</h4>
+                    <div class="response-content" id="cleanupResponseContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+
+</html>
