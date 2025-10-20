@@ -5,6 +5,7 @@ import { encodeWorkflowEvent } from "lib/ai/workflow/shared.workflow";
 import logger from "logger";
 import { colorize } from "consola/utils";
 import { safeJSONParse, toAny } from "lib/utils";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function POST(
   request: Request,
@@ -16,11 +17,17 @@ export async function POST(
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
+  
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+  
+  const hasAccess = await workflowRepository.checkAccess(id, session.user.id, spaceId);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const workflow = await workflowRepository.selectStructureById(id);
+  const workflow = await workflowRepository.selectStructureById(id, spaceId);
   if (!workflow) {
     return new Response("Workflow not found", { status: 404 });
   }

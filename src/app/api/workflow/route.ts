@@ -1,13 +1,20 @@
 import { getSession } from "auth/server";
 import { workflowRepository } from "lib/db/repository";
 import { canCreateWorkflow, canEditWorkflow } from "lib/auth/permissions";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET() {
   const session = await getSession();
   if (!session) {
     return Response.json([]);
   }
-  const workflows = await workflowRepository.selectAll(session.user.id);
+  
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return Response.json({ error: "Workspace required" }, { status: 400 });
+  }
+  
+  const workflows = await workflowRepository.selectAll(session.user.id, spaceId);
   return Response.json(workflows);
 }
 
@@ -27,6 +34,11 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   // Check if user has permission to create/edit workflows
   if (id) {
     // Editing existing workflow
@@ -40,6 +52,7 @@ export async function POST(request: Request) {
     const hasAccess = await workflowRepository.checkAccess(
       id,
       session.user.id,
+      spaceId,
       false,
     );
     if (!hasAccess) {
@@ -65,6 +78,7 @@ export async function POST(request: Request) {
       visibility,
       icon,
       userId: session.user.id,
+      spaceId,
     },
     noGenerateInputNode,
   );

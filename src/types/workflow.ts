@@ -18,6 +18,7 @@ export type DBWorkflow = {
   isPublished: boolean;
   visibility: Visibility;
   userId: string;
+  spaceId: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -60,15 +61,16 @@ export type WorkflowSummary = {
   visibility: Visibility;
   isPublished: boolean;
   userId: string;
+  spaceId: string;
   userName: string;
   userAvatar?: string;
   updatedAt: Date;
 };
 export interface WorkflowRepository {
   delete(id: string): Promise<void>;
-  selectByUserId(userId: string): Promise<DBWorkflow[]>;
-  selectAll(userId: string): Promise<WorkflowSummary[]>;
-  selectExecuteAbility(userId: string): Promise<WorkflowSummary[]>;
+  selectByUserId(userId: string, spaceId: string): Promise<DBWorkflow[]>;
+  selectAll(userId: string, spaceId: string): Promise<WorkflowSummary[]>;
+  selectExecuteAbility(userId: string, spaceId: string): Promise<WorkflowSummary[]>;
   selectToolByIds(ids: string[]): Promise<
     {
       id: string;
@@ -80,9 +82,10 @@ export interface WorkflowRepository {
   checkAccess(
     workflowId: string,
     userId: string,
+    spaceId: string,
     readOnly?: boolean,
   ): Promise<boolean>;
-  selectById(id: string): Promise<DBWorkflow | null>;
+  selectById(id: string, spaceId: string): Promise<DBWorkflow | null>;
   save(
     workflow: PartialBy<
       DBWorkflow,
@@ -105,6 +108,7 @@ export interface WorkflowRepository {
 
   selectStructureById(
     id: string,
+    spaceId: string,
     option?: {
       ignoreNote?: boolean;
     },

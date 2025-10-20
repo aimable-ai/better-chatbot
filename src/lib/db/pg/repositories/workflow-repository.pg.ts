@@ -61,7 +61,7 @@ export const pgWorkflowRepository: WorkflowRepository = {
     );
   },
 
-  async selectExecuteAbility(userId) {
+  async selectExecuteAbility(userId: string, spaceId: string) {
     const rows = await pgDb
       .select({
         id: WorkflowSchema.id,
@@ -71,6 +71,7 @@ export const pgWorkflowRepository: WorkflowRepository = {
         visibility: WorkflowSchema.visibility,
         isPublished: WorkflowSchema.isPublished,
         userId: WorkflowSchema.userId,
+        spaceId: WorkflowSchema.spaceId,
         userName: UserSchema.name,
         userAvatar: UserSchema.image,
         updatedAt: WorkflowSchema.updatedAt,
@@ -79,6 +80,7 @@ export const pgWorkflowRepository: WorkflowRepository = {
       .innerJoin(UserSchema, eq(WorkflowSchema.userId, UserSchema.id))
       .where(
         and(
+          eq(WorkflowSchema.spaceId, spaceId),
           eq(WorkflowSchema.isPublished, true),
           or(
             eq(WorkflowSchema.userId, userId),
@@ -88,7 +90,7 @@ export const pgWorkflowRepository: WorkflowRepository = {
       );
     return rows as WorkflowSummary[];
   },
-  async selectAll(userId) {
+  async selectAll(userId: string, spaceId: string) {
     const rows = await pgDb
       .select({
         id: WorkflowSchema.id,
@@ -98,6 +100,7 @@ export const pgWorkflowRepository: WorkflowRepository = {
         visibility: WorkflowSchema.visibility,
         isPublished: WorkflowSchema.isPublished,
         userId: WorkflowSchema.userId,
+        spaceId: WorkflowSchema.spaceId,
         userName: UserSchema.name,
         userAvatar: UserSchema.image,
         updatedAt: WorkflowSchema.updatedAt,
@@ -105,30 +108,34 @@ export const pgWorkflowRepository: WorkflowRepository = {
       .from(WorkflowSchema)
       .innerJoin(UserSchema, eq(WorkflowSchema.userId, UserSchema.id))
       .where(
-        or(
-          inArray(WorkflowSchema.visibility, ["public", "readonly"]),
-          eq(WorkflowSchema.userId, userId),
+        and(
+          eq(WorkflowSchema.spaceId, spaceId),
+          or(
+            inArray(WorkflowSchema.visibility, ["public", "readonly"]),
+            eq(WorkflowSchema.userId, userId),
+          ),
         ),
       )
       .orderBy(desc(WorkflowSchema.createdAt));
     return rows as WorkflowSummary[];
   },
-  async selectById(id) {
+  async selectById(id: string, spaceId: string) {
     const [workflow] = await pgDb
       .select()
       .from(WorkflowSchema)
-      .where(eq(WorkflowSchema.id, id));
+      .where(and(eq(WorkflowSchema.id, id), eq(WorkflowSchema.spaceId, spaceId)));
     return workflow as DBWorkflow;
   },
 
-  async checkAccess(workflowId, userId, readOnly = true) {
+  async checkAccess(workflowId: string, userId: string, spaceId: string, readOnly: boolean = true) {
     const [workflow] = await pgDb
       .select({
         visibility: WorkflowSchema.visibility,
         userId: WorkflowSchema.userId,
+        spaceId: WorkflowSchema.spaceId,
       })
       .from(WorkflowSchema)
-      .where(and(eq(WorkflowSchema.id, workflowId)));
+      .where(and(eq(WorkflowSchema.id, workflowId), eq(WorkflowSchema.spaceId, spaceId)));
     if (!workflow) {
       return false;
     }
@@ -147,11 +154,11 @@ export const pgWorkflowRepository: WorkflowRepository = {
       throw new Error("Workflow not found");
     }
   },
-  async selectByUserId(userId) {
+  async selectByUserId(userId: string, spaceId: string) {
     const rows = await pgDb
       .select()
       .from(WorkflowSchema)
-      .where(eq(WorkflowSchema.userId, userId))
+      .where(and(eq(WorkflowSchema.userId, userId), eq(WorkflowSchema.spaceId, spaceId)))
       .orderBy(desc(WorkflowSchema.createdAt));
     return rows as DBWorkflow[];
   },
@@ -163,13 +170,20 @@ export const pgWorkflowRepository: WorkflowRepository = {
           .where(eq(WorkflowSchema.id, workflow.id))
       : null;
     const isNew = !prev;
+    
+    // Ensure spaceId is present and default visibility is public
+    const workflowData = {
+      ...workflow,
+      visibility: workflow.visibility || "public",
+    };
+    
     const [row] = await pgDb
       .insert(WorkflowSchema)
-      .values(workflow)
+      .values(workflowData)
       .onConflictDoUpdate({
         target: [WorkflowSchema.id],
         set: {
-          ...workflow,
+          ...workflowData,
           updatedAt: new Date(),
         },
       })
@@ -238,11 +252,11 @@ export const pgWorkflowRepository: WorkflowRepository = {
       }
     });
   },
-  async selectStructureById(id, opt) {
+  async selectStructureById(id: string, spaceId: string, opt) {
     const [workflow] = await pgDb
       .select()
       .from(WorkflowSchema)
-      .where(eq(WorkflowSchema.id, id));
+      .where(and(eq(WorkflowSchema.id, id), eq(WorkflowSchema.spaceId, spaceId)));
 
     if (!workflow) return null;
 

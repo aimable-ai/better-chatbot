@@ -1,5 +1,6 @@
 import { getSession } from "auth/server";
 import { workflowRepository } from "lib/db/repository";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET(
   _: Request,
@@ -10,11 +11,17 @@ export async function GET(
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
+  
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+  
+  const hasAccess = await workflowRepository.checkAccess(id, session.user.id, spaceId);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const workflow = await workflowRepository.selectStructureById(id);
+  const workflow = await workflowRepository.selectStructureById(id, spaceId);
   return Response.json(workflow);
 }
 
@@ -29,9 +36,15 @@ export async function POST(
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   const hasAccess = await workflowRepository.checkAccess(
     id,
     session.user.id,
+    spaceId,
     false,
   );
   if (!hasAccess) {

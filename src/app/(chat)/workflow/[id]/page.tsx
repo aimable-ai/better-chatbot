@@ -6,6 +6,7 @@ import Workflow from "@/components/workflow/workflow";
 import { getSession } from "auth/server";
 import { workflowRepository } from "lib/db/repository";
 import { notFound, redirect } from "next/navigation";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export default async function WorkflowPage({
   params,
@@ -19,18 +20,24 @@ export default async function WorkflowPage({
     redirect("/sign-in");
   }
 
-  const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    redirect("/spaces");
+  }
+
+  const hasAccess = await workflowRepository.checkAccess(id, session.user.id, spaceId);
   if (!hasAccess) {
     notFound();
   }
 
-  const workflow = await workflowRepository.selectStructureById(id);
+  const workflow = await workflowRepository.selectStructureById(id, spaceId);
   if (!workflow) {
     notFound();
   }
   const hasEditAccess = await workflowRepository.checkAccess(
     id,
     session.user.id,
+    spaceId,
     false,
   );
   const initialNodes = workflow.nodes.map(convertDBNodeToUINode);

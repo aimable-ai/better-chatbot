@@ -218,10 +218,13 @@ export const WorkflowSchema = pgTable("workflow", {
     enum: ["public", "private", "readonly"],
   })
     .notNull()
-    .default("private"),
+    .default("public"),
   userId: uuid("user_id")
     .notNull()
     .references(() => UserSchema.id, { onDelete: "cascade" }),
+  spaceId: uuid("space_id")
+    .notNull()
+    .references(() => SpaceSchema.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

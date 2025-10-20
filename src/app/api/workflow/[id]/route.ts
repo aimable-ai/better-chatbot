@@ -1,6 +1,7 @@
 import { getSession } from "auth/server";
 import { workflowRepository } from "lib/db/repository";
 import { canEditWorkflow, canDeleteWorkflow } from "lib/auth/permissions";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET(
   _: Request,
@@ -11,11 +12,17 @@ export async function GET(
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
+  
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+  
+  const hasAccess = await workflowRepository.checkAccess(id, session.user.id, spaceId);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const workflow = await workflowRepository.selectById(id);
+  const workflow = await workflowRepository.selectById(id, spaceId);
   return Response.json(workflow);
 }
 
@@ -31,6 +38,11 @@ export async function PUT(
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   // Check if user has permission to edit workflows
   const canEdit = await canEditWorkflow();
   if (!canEdit) {
@@ -42,6 +54,7 @@ export async function PUT(
   const hasAccess = await workflowRepository.checkAccess(
     id,
     session.user.id,
+    spaceId,
     false,
   );
   if (!hasAccess) {
@@ -49,7 +62,7 @@ export async function PUT(
   }
 
   // Get existing workflow
-  const existingWorkflow = await workflowRepository.selectById(id);
+  const existingWorkflow = await workflowRepository.selectById(id, spaceId);
   if (!existingWorkflow) {
     return new Response("Workflow not found", { status: 404 });
   }
@@ -75,6 +88,11 @@ export async function DELETE(
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   // Check if user has permission to delete workflows
   const canDelete = await canDeleteWorkflow();
   if (!canDelete) {
@@ -86,6 +104,7 @@ export async function DELETE(
   const hasAccess = await workflowRepository.checkAccess(
     id,
     session.user.id,
+    spaceId,
     false,
   );
   if (!hasAccess) {
