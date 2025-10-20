@@ -5,6 +5,7 @@ import { Button } from "ui/button";
 import {
   Command,
   CommandEmpty,
+  CommandInput,
   CommandItem,
   CommandList,
 } from "ui/command";
@@ -15,7 +16,6 @@ import {
   Building2, 
   Archive,
   Check,
-  Search,
   LoaderCircle
 } from "lucide-react";
 import { cn } from "lib/utils";
@@ -163,13 +163,9 @@ export function SpaceSelector() {
           value={currentId || ""}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex h-9 items-center gap-2 border-b px-3">
-            <Search className="size-4 shrink-0 opacity-50" />
-            <input
-              placeholder="Search spaces..."
-              className="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
+          <CommandInput
+            placeholder="Search spaces..."
+          />
           <CommandList className="p-2">
             <CommandEmpty>
               {isLoading ? (
