@@ -127,6 +127,13 @@
       "when": 1760974656362,
       "tag": "0017_workflows_space_id",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1760974656363,
+      "tag": "0018_mcp_space_id",
+      "breakpoints": true
     }
   ]
 }

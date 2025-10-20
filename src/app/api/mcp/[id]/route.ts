@@ -4,6 +4,7 @@ import { pgMcpRepository } from "lib/db/pg/repositories/mcp-repository.pg";
 import { getSession } from "auth/server";
 import { canManageMCPServer } from "lib/auth/permissions";
 import logger from "lib/logger";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function DELETE(
   _request: NextRequest,
@@ -16,18 +17,22 @@ export async function DELETE(
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const mcpServer = await pgMcpRepository.selectById(params.id);
+
+    const { spaceId } = await validateUserAccessToCurrentSpace();
+    if (!spaceId) {
+      return NextResponse.json({ error: "Workspace required" }, { status: 400 });
+    }
+
+    const mcpServer = await pgMcpRepository.selectById(params.id, spaceId);
     if (!mcpServer) {
       return NextResponse.json(
         { error: "MCP server not found" },
         { status: 404 },
       );
     }
-    const canManage = await canManageMCPServer(
-      mcpServer.userId,
-      mcpServer.visibility,
-    );
-    if (!canManage) {
+
+    const hasAccess = await pgMcpRepository.checkAccess(params.id, session.user.id, spaceId);
+    if (!hasAccess) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

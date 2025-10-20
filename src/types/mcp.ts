@@ -47,6 +47,7 @@ export type MCPServerInfo = {
   error?: unknown;
   enabled: boolean;
   userId: string;
+  spaceId: string;
   status: "connected" | "disconnected" | "loading" | "authorizing";
   toolInfo: MCPToolInfo[];
   createdAt?: Date | string;
@@ -67,6 +68,7 @@ export type McpServerInsert = {
   config: MCPServerConfig;
   id?: string;
   userId: string;
+  spaceId: string;
   visibility?: "public" | "private";
 };
 export type McpServerSelect = {
@@ -74,6 +76,7 @@ export type McpServerSelect = {
   config: MCPServerConfig;
   id: string;
   userId: string;
+  spaceId: string;
   visibility: "public" | "private";
 };
 
@@ -87,13 +90,14 @@ export const VercelAIMcpToolTag = tag<VercelAIMcpTool>("mcp");
 
 export interface MCPRepository {
   save(server: McpServerInsert): Promise<McpServerSelect>;
-  selectById(id: string): Promise<McpServerSelect | null>;
+  selectById(id: string, spaceId: string): Promise<McpServerSelect | null>;
   selectByServerName(name: string): Promise<McpServerSelect | null>;
   selectAll(): Promise<McpServerSelect[]>;
-  selectAllForUser(userId: string): Promise<McpServerSelect[]>;
-  deleteById(id: string): Promise<void>;
+  selectAllForUser(userId: string, spaceId: string): Promise<McpServerSelect[]>;
+  deleteById(id: string, spaceId: string): Promise<void>;
   existsByServerName(name: string): Promise<boolean>;
-  updateVisibility(id: string, visibility: "public" | "private"): Promise<void>;
+  updateVisibility(id: string, spaceId: string, visibility: "public" | "private"): Promise<void>;
+  checkAccess(mcpServerId: string, userId: string, spaceId: string): Promise<boolean>;
 }
 
 export const McpToolCustomizationZodSchema = z.object({

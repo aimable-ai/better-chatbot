@@ -5,13 +5,20 @@ import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { mcpRepository } from "lib/db/repository";
 import { redirect } from "next/navigation";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export default async function Page({
   params,
 }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await getTranslations();
-  const mcpClient = await mcpRepository.selectById(id);
+  
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return redirect("/spaces");
+  }
+
+  const mcpClient = await mcpRepository.selectById(id, spaceId);
 
   if (!mcpClient) {
     return redirect("/mcp");

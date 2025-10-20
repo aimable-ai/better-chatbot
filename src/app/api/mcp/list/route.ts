@@ -2,6 +2,7 @@ import { MCPServerInfo } from "app-types/mcp";
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 import { mcpRepository } from "lib/db/repository";
 import { getCurrentUser } from "lib/auth/permissions";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET() {
   const currentUser = await getCurrentUser();
@@ -10,8 +11,13 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return Response.json({ error: "Workspace required" }, { status: 400 });
+  }
+
   const [servers, memoryClients] = await Promise.all([
-    mcpRepository.selectAllForUser(currentUser.id),
+    mcpRepository.selectAllForUser(currentUser.id, spaceId),
     mcpClientsManager.getClients(),
   ]);
 

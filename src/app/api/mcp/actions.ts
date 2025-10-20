@@ -10,6 +10,7 @@ import {
   canShareMCPServer,
   getCurrentUser,
 } from "lib/auth/permissions";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function selectMcpClientsAction() {
   // Get current user to filter MCP servers
@@ -18,9 +19,15 @@ export async function selectMcpClientsAction() {
     return [];
   }
 
-  // Get all MCP servers the user can access (their own + shared)
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return [];
+  }
+
+  // Get all MCP servers the user can access (their own + shared) within the current space
   const accessibleServers = await mcpRepository.selectAllForUser(
     currentUser.id,
+    spaceId,
   );
   const accessibleIds = new Set(accessibleServers.map((s) => s.id));
 
@@ -34,6 +41,7 @@ export async function selectMcpClientsAction() {
         ...client.getInfo(),
         id,
         userId: server?.userId,
+        spaceId: server?.spaceId,
         visibility: server?.visibility,
         isOwner: server?.userId === currentUser.id,
         canManage: server
@@ -65,6 +73,11 @@ export async function saveMcpClientAction(
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     throw new Error("You must be logged in to create MCP connections");
+  }
+
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    throw new Error("Workspace required");
   }
 
   // Check if user has permission to create/edit MCP connections
@@ -100,11 +113,12 @@ export async function saveMcpClientAction(
     }
   }
 
-  // Add userId to the server object
+  // Add userId and spaceId to the server object
   const serverWithUser = {
     ...server,
     userId: currentUser.id,
-    visibility: server.visibility || "private",
+    spaceId: server.spaceId || spaceId,
+    visibility: server.visibility || "public",
   };
 
   return mcpClientsManager.persistClient(serverWithUser);
@@ -115,18 +129,26 @@ export async function existMcpClientByServerNameAction(serverName: string) {
 }
 
 export async function removeMcpClientAction(id: string) {
+  // Get current user and space
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    throw new Error("You must be logged in to delete MCP connections");
+  }
+
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    throw new Error("Workspace required");
+  }
+
   // Get the MCP server to check ownership
-  const mcpServer = await mcpRepository.selectById(id);
+  const mcpServer = await mcpRepository.selectById(id, spaceId);
   if (!mcpServer) {
     throw new Error("MCP server not found");
   }
 
   // Check if user has permission to delete this specific MCP server
-  const canManage = await canManageMCPServer(
-    mcpServer.userId,
-    mcpServer.visibility,
-  );
-  if (!canManage) {
+  const hasAccess = await mcpRepository.checkAccess(id, currentUser.id, spaceId);
+  if (!hasAccess) {
     throw new Error("You don't have permission to delete this MCP connection");
   }
 
@@ -181,8 +203,13 @@ export async function shareMcpServerAction(
     throw new Error("Only administrators can feature MCP servers");
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    throw new Error("Workspace required");
+  }
+
   // Update the visibility of the MCP server
-  await mcpRepository.updateVisibility(id, visibility);
+  await mcpRepository.updateVisibility(id, spaceId, visibility);
 
   return { success: true };
 }

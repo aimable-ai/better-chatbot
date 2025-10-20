@@ -4,11 +4,17 @@ import { NextResponse } from "next/server";
 import { saveMcpClientAction } from "./actions";
 import { canCreateMCP } from "lib/auth/permissions";
 import { logger } from "better-auth";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return NextResponse.json({ error: "Workspace required" }, { status: 400 });
   }
 
   // Check if user has permission to create MCP connections
@@ -23,7 +29,7 @@ export async function POST(request: Request) {
   const json = (await request.json()) as typeof McpServerSchema.$inferInsert;
 
   try {
-    const result = await saveMcpClientAction(json);
+    const result = await saveMcpClientAction({ ...json, spaceId });
 
     return NextResponse.json({ success: true, id: result.client.getInfo().id });
   } catch (error: any) {

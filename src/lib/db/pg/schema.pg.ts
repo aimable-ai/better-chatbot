@@ -89,11 +89,14 @@ export const McpServerSchema = pgTable("mcp_server", {
   userId: uuid("user_id")
     .notNull()
     .references(() => UserSchema.id, { onDelete: "cascade" }),
+  spaceId: uuid("space_id")
+    .notNull()
+    .references(() => SpaceSchema.id, { onDelete: "cascade" }),
   visibility: varchar("visibility", {
     enum: ["public", "private"],
   })
     .notNull()
-    .default("private"),
+    .default("public"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
