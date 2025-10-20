@@ -16,6 +16,23 @@ import logger from "lib/logger";
 import { getTranslations } from "next-intl/server";
 import { getUser } from "lib/user/server";
 import { userRepository } from "lib/db/repository";
+import { spacesRepository } from "lib/spaces/repository";
+
+// Helper function to create a personal space for a user
+async function createPersonalSpaceForUser(userId: string) {
+  try {
+    // Create the personal space
+    const personalSpace = await spacesRepository.createSpace("Personal");
+    
+    // Add user as owner of the space
+    await spacesRepository.upsertMember(personalSpace.id, userId, "owner");
+    
+    return personalSpace;
+  } catch (error) {
+    logger.error("Failed to create personal space for user:", error);
+    throw new Error("Failed to create personal space");
+  }
+}
 
 export const updateUserRolesAction = validatedActionWithAdminPermission(
   UpdateUserRoleSchema,
@@ -157,6 +174,17 @@ export const createUserAction = validatedActionWithAdminPermission(
       // Get updated user data
       const createdUser = await getUser(newUser.id);
 
+      // Create personal space for the new user
+      let personalSpace: Awaited<ReturnType<typeof spacesRepository.createSpace>> | null = null;
+      try {
+        personalSpace = await createPersonalSpaceForUser(newUser.id);
+        logger.info(`Created personal space for user ${newUser.id}: ${personalSpace.id}`);
+      } catch (spaceError) {
+        logger.error("Failed to create personal space, but user was created successfully:", spaceError);
+        // Don't fail the entire operation if space creation fails
+        // The space will be created later when the user creates their first content
+      }
+
       return {
         success: true,
         message: t("userCreatedSuccessfully", {
@@ -164,6 +192,7 @@ export const createUserAction = validatedActionWithAdminPermission(
           role: userRolesInfo[targetRole].label,
         }),
         user: createdUser,
+        personalSpace,
       };
     } catch (error) {
       logger.error("Failed to create user:", error);

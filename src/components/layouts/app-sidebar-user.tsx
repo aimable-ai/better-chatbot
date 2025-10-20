@@ -28,6 +28,7 @@ import {
   Info,
   HelpCircle,
   Settings,
+  Shield,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { appStore } from "@/app/store";
@@ -41,6 +42,8 @@ import { Suspense, useCallback } from "react";
 import { useThemeStyle } from "@/hooks/use-theme-style";
 import { BasicUser } from "app-types/user";
 import { Skeleton } from "ui/skeleton";
+import { getIsUserAdmin } from "lib/user/utils";
+import Link from "next/link";
 
 export function AppSidebarUserInner(props: {
   user?: BasicUser;
@@ -161,6 +164,14 @@ export function AppSidebarUserInner(props: {
               <Settings className="size-4 text-foreground" />
               <span>User Settings</span>
             </DropdownMenuItem>
+            {getIsUserAdmin(user) && (
+              <DropdownMenuItem asChild>
+                <Link href="/admin" data-testid="admin-dropdown-link">
+                  <Shield className="size-4 text-foreground" />
+                  <span>Admin Panel</span>
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="cursor-pointer">
               <LogOutIcon className="size-4 text-foreground" />

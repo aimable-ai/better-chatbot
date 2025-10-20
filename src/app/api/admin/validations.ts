@@ -3,6 +3,7 @@ import { USER_ROLES, UserRoleNames } from "app-types/roles";
 
 import { ActionState } from "lib/action-utils";
 import { BasicUserWithLastLogin } from "app-types/user";
+import { spacesRepository } from "lib/spaces/repository";
 
 export const UpdateUserRoleSchema = z.object({
   userId: z.uuid("Invalid user ID"),
@@ -37,4 +38,5 @@ export type UpdateUserBanStatusActionState = ActionState & {
 
 export type CreateUserActionState = ActionState & {
   user?: BasicUserWithLastLogin | null;
+  personalSpace?: Awaited<ReturnType<typeof spacesRepository.createSpace>> | null;
 };

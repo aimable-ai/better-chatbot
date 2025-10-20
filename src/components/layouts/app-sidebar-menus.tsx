@@ -28,9 +28,7 @@ import { useCallback, useState } from "react";
 import { Skeleton } from "ui/skeleton";
 import { useArchives } from "@/hooks/queries/use-archives";
 import { ArchiveDialog } from "../archive-dialog";
-import { getIsUserAdmin } from "lib/user/utils";
 import { BasicUser } from "app-types/user";
-import { AppSidebarAdmin } from "./app-sidebar-menu-admin";
 
 export function AppSidebarMenus({ user }: { user?: BasicUser }) {
   const router = useRouter();
@@ -101,7 +99,6 @@ export function AppSidebarMenus({ user }: { user?: BasicUser }) {
             </SidebarMenuItem>
           </Tooltip>
         </SidebarMenu>
-        {getIsUserAdmin(user) && <AppSidebarAdmin />}
         <SidebarMenu className="group/archive">
           <Tooltip>
             <SidebarMenuItem>

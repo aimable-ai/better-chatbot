@@ -3,14 +3,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "ui/dropdown-menu";
-import { ChevronDown, Layers } from "lucide-react";
+  Command,
+  CommandEmpty,
+  CommandItem,
+  CommandList,
+} from "ui/command";
+import { Avatar, AvatarFallback } from "ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "ui/popover";
+import { 
+  ChevronDown, 
+  Building2, 
+  Archive,
+  Check,
+  Search,
+  LoaderCircle
+} from "lucide-react";
+import { cn } from "lib/utils";
+import { Dialog, DialogContent } from "ui/dialog";
+import { useRouter } from "next/navigation";
 
 type SpaceItem = {
   id: string;
@@ -23,13 +33,38 @@ function getCurrentSpaceIdFromCookie(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+function getSpaceIcon(status?: string) {
+  switch (status) {
+    case "archived":
+      return Archive;
+    case "active":
+    default:
+      return Building2;
+  }
+}
+
+function getSpaceInitials(name: string) {
+  return name
+    .split(" ")
+    .map(word => word.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+
 export function SpaceSelector() {
   const [spaces, setSpaces] = useState<SpaceItem[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [switchingToSpace, setSwitchingToSpace] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     let alive = true;
+    setIsLoading(true);
     fetch("/api/spaces")
       .then((r) => r.json())
       .then((d) => {
@@ -54,8 +89,13 @@ export function SpaceSelector() {
           .filter(Boolean) as SpaceItem[];
         const active = normalized.filter((s) => s.status !== "deleted");
         setSpaces(active);
+        setIsLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) {
+          setIsLoading(false);
+        }
+      });
     setCurrentId(getCurrentSpaceIdFromCookie());
     return () => {
       alive = false;
@@ -66,48 +106,136 @@ export function SpaceSelector() {
     return spaces.find((s) => s.id === currentId) || null;
   }, [spaces, currentId]);
 
-  const setCurrent = (id: string) => {
+  const setCurrent = async (id: string) => {
+    const space = spaces.find(s => s.id === id);
+    if (!space) return;
+    
+    setIsSwitching(true);
+    setSwitchingToSpace(space.name);
+    setOpen(false);
+    
+    // Update cookie
     document.cookie = `current-space-id=${id}; path=/;`;
     setCurrentId(id);
-    // Reload to propagate to server components and API calls
-    window.location.reload();
+    
+    // Use router.refresh() instead of window.location.reload()
+    router.refresh();
+    
+    // Close modal after a short delay to show the loading state
+    setTimeout(() => {
+      setIsSwitching(false);
+      setSwitchingToSpace(null);
+    }, 1000);
   };
 
+  const SpaceIcon = getSpaceIcon(currentSpace?.status);
+
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="px-2 py-1 h-8 gap-2">
-          <Layers className="size-4" />
-          <span className="truncate max-w-52">
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="ghost" 
+          className="justify-start gap-2 hover:bg-accent/50"
+          style={{
+            padding: '20px 5px 20px 10px',
+            width: '242px',
+            marginLeft: '-10px'
+          }}
+        >
+          <Avatar className="size-6 shrink-0">
+            <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+              {currentSpace ? getSpaceInitials(currentSpace.name) : <SpaceIcon className="size-3" />}
+            </AvatarFallback>
+          </Avatar>
+          <span className="font-medium text-sm truncate flex-1 text-left">
             {currentSpace?.name || "Select workspace"}
           </span>
-          <ChevronDown className="size-4 opacity-70" />
+          <ChevronDown className="size-4 opacity-70 shrink-0" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64 max-h-96 overflow-y-auto">
-        <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {spaces.length === 0 ? (
-          <DropdownMenuItem disabled>No workspaces available</DropdownMenuItem>
-        ) : (
-          spaces.map((s) => (
-            <DropdownMenuItem
-              key={s.id}
-              onClick={() => s.id !== currentId && setCurrent(s.id)}
-              className="cursor-pointer flex items-center justify-between"
-            >
-              <span className="truncate">{s.name}</span>
-              {s.status === "archived" && (
-                <span className="text-xs text-amber-600 ml-2">Archived</span>
+      </PopoverTrigger>
+      <PopoverContent
+        className="p-0 w-[280px]"
+        align="start"
+      >
+        <Command
+          className="rounded-lg relative shadow-md"
+          value={currentId || ""}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex h-9 items-center gap-2 border-b px-3">
+            <Search className="size-4 shrink-0 opacity-50" />
+            <input
+              placeholder="Search spaces..."
+              className="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+          <CommandList className="p-2">
+            <CommandEmpty>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <LoaderCircle className="size-4 animate-spin" />
+                </div>
+              ) : (
+                "No spaces found."
               )}
-            </DropdownMenuItem>
-          ))
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            </CommandEmpty>
+            {spaces.map((space) => {
+              const isCurrent = space.id === currentId;
+              
+              return (
+                <CommandItem
+                  key={space.id}
+                  className="cursor-pointer"
+                  onSelect={() => {
+                    if (space.id !== currentId) {
+                      setCurrent(space.id);
+                    }
+                    setOpen(false);
+                  }}
+                  value={space.name}
+                >
+                  <Avatar className="size-6 shrink-0">
+                    <AvatarFallback className={cn(
+                      "font-semibold text-xs",
+                      space.status === "archived" 
+                        ? "bg-muted text-muted-foreground" 
+                        : "bg-primary/10 text-primary"
+                    )}>
+                      {getSpaceInitials(space.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="pr-2">{space.name}</span>
+                  {space.status === "archived" && (
+                    <span className="text-xs text-muted-foreground ml-auto">Archived</span>
+                  )}
+                  {isCurrent && (
+                    <Check className="size-3 ml-auto" />
+                  )}
+                </CommandItem>
+              );
+            })}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+    
+    {/* Loading Modal */}
+    <Dialog open={isSwitching} onOpenChange={() => {}}>
+      <DialogContent hideClose className="max-w-sm shadow-2xl">
+        <div className="flex flex-col items-center justify-center py-6 space-y-4">
+          <LoaderCircle className="size-6 animate-spin text-muted-foreground opacity-70" />
+          <div className="text-center">
+            <h3 className="font-semibold text-lg">Switching space...</h3>
+            <p className="text-muted-foreground">
+              Loading "{switchingToSpace}"...
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
 export default SpaceSelector;
-
-
