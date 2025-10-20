@@ -5,6 +5,7 @@ import { serverCache } from "lib/cache";
 import { CacheKeys } from "lib/cache/cache-keys";
 import { AgentCreateSchema, AgentQuerySchema } from "app-types/agent";
 import { canCreateAgent } from "lib/auth/permissions";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -31,12 +32,15 @@ export async function GET(request: Request) {
       filters = [type];
     }
 
-    // Use the new simplified selectAgents method with database-level filtering and limiting
-    const agents = await agentRepository.selectAgents(
-      session.user.id,
-      filters,
-      limit,
-    );
+    // Determine current space and ensure access
+    const { user: { id: userId } } = session;
+    const { spaceId } = await validateUserAccessToCurrentSpace();
+    if (!spaceId) {
+      return Response.json({ error: "Workspace required" }, { status: 400 });
+    }
+
+    // Use the new simplified selectAgents method with database-level filtering and limiting scoped by space
+    const agents = await agentRepository.selectAgents(userId, spaceId, filters, limit);
     return Response.json(agents);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -70,10 +74,15 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const body = await request.json();
     const data = AgentCreateSchema.parse(body);
+    const { spaceId } = await validateUserAccessToCurrentSpace();
+    if (!spaceId) {
+      return Response.json({ error: "Workspace required" }, { status: 400 });
+    }
 
     const agent = await agentRepository.insertAgent({
       ...data,
       userId: session.user.id,
+      spaceId,
     });
     serverCache.delete(CacheKeys.agentInstructions(agent.id));
 

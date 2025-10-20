@@ -37,7 +37,7 @@ import { authClient } from "auth/client";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { getLocaleAction } from "@/i18n/get-locale";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback } from "react";
 import { useThemeStyle } from "@/hooks/use-theme-style";
 import { BasicUser } from "app-types/user";
 import { Skeleton } from "ui/skeleton";
@@ -151,7 +151,7 @@ export function AppSidebarUserInner(props: {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
 
-            <WorkspaceSwitcher />
+            {/* Workspace selection moved to header SpaceSelector for consistency */}
 
             <DropdownMenuItem
               onClick={() => appStoreMutate({ openUserSettings: true })}
@@ -290,57 +290,7 @@ function SelectLanguage() {
   );
 }
 
-function WorkspaceSwitcher() {
-  const [spaces, setSpaces] = useState<
-    Array<{ id: string; name: string; status: string }>
-  >([]);
-  const [currentId, setCurrentId] = useState<string | null>(null);
-  useEffect(() => {
-    fetch("/api/spaces")
-      .then((r) => r.json())
-      .then((d) => setSpaces(d.spaces || []))
-      .catch(() => {});
-    const m = document.cookie.match(/(?:^|; )current-space-id=([^;]+)/);
-    setCurrentId(m ? decodeURIComponent(m[1]) : null);
-  }, []);
-  const setCurrent = (id: string) => {
-    document.cookie = `current-space-id=${id}; path=/;`;
-    setCurrentId(id);
-    window.location.reload();
-  };
-  // Filter out deleted workspaces
-  const activeSpaces = spaces.filter((s) => s.status !== "deleted");
-  if (!activeSpaces?.length) return null;
-  return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger>
-        <span className="mr-2 size-4" />
-        <span>Workspace</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuPortal>
-        <DropdownMenuSubContent className="w-64 max-h-96 overflow-y-auto">
-          <DropdownMenuLabel className="text-muted-foreground">
-            Select workspace
-          </DropdownMenuLabel>
-          {activeSpaces.map((s) => (
-            <DropdownMenuCheckboxItem
-              key={s.id}
-              checked={s.id === currentId}
-              onCheckedChange={() => s.id !== currentId && setCurrent(s.id)}
-            >
-              <div className="flex items-center justify-between w-full">
-                <span>{s.name}</span>
-                {s.status === "archived" && (
-                  <span className="text-xs text-amber-600 ml-2">Archived</span>
-                )}
-              </div>
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuSubContent>
-      </DropdownMenuPortal>
-    </DropdownMenuSub>
-  );
-}
+// Workspace selection is now handled by SpaceSelector in the header.
 
 export function AppSidebarUserSkeleton() {
   return (

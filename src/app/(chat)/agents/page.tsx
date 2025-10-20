@@ -1,5 +1,6 @@
 import { agentRepository } from "lib/db/repository";
 import { getSession } from "auth/server";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 import { notFound } from "next/navigation";
 import { AgentsList } from "@/components/agent/agents-list";
 
@@ -13,9 +14,12 @@ export default async function AgentsPage() {
     notFound();
   }
 
-  // Fetch agents data on the server
+  // Fetch agents data on the server scoped to current space
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) return notFound();
   const allAgents = await agentRepository.selectAgents(
     session.user.id,
+    spaceId,
     ["mine", "shared"],
     50,
   );

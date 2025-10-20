@@ -27,7 +27,7 @@ export const AgentCreateSchema = z
       .optional(),
     userId: z.string(),
     instructions: AgentInstructionsSchema,
-    visibility: VisibilitySchema.optional().default("private"),
+    visibility: VisibilitySchema.optional().default("public"),
   })
   .strip();
 export const AgentUpdateSchema = z
@@ -60,6 +60,7 @@ export type AgentSummary = {
   description?: string;
   icon?: AgentIcon;
   userId: string;
+  spaceId: string;
   visibility: AgentVisibility;
   createdAt: Date;
   updatedAt: Date;
@@ -73,9 +74,15 @@ export type Agent = AgentSummary & {
 };
 
 export type AgentRepository = {
-  insertAgent(agent: z.infer<typeof AgentCreateSchema>): Promise<Agent>;
+  insertAgent(
+    agent: z.infer<typeof AgentCreateSchema> & { spaceId: string },
+  ): Promise<Agent>;
 
-  selectAgentById(id: string, userId: string): Promise<Agent | null>;
+  selectAgentById(
+    id: string,
+    userId: string,
+    spaceId: string,
+  ): Promise<Agent | null>;
 
   selectAgentsByUserId(userId: string): Promise<Agent[]>;
 
@@ -89,6 +96,7 @@ export type AgentRepository = {
 
   selectAgents(
     currentUserId: string,
+    spaceId: string,
     filters?: ("all" | "mine" | "shared" | "bookmarked")[],
     limit?: number,
   ): Promise<AgentSummary[]>;
@@ -96,6 +104,7 @@ export type AgentRepository = {
   checkAccess(
     agentId: string,
     userId: string,
+    spaceId: string,
     destructive?: boolean,
   ): Promise<boolean>;
 };

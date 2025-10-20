@@ -5,6 +5,7 @@ import { AgentUpdateSchema } from "app-types/agent";
 import { serverCache } from "lib/cache";
 import { CacheKeys } from "lib/cache/cache-keys";
 import { canEditAgent, canDeleteAgent } from "lib/auth/permissions";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET(
   _request: Request,
@@ -17,13 +18,25 @@ export async function GET(
   }
 
   const { id } = await params;
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
 
-  const hasAccess = await agentRepository.checkAccess(id, session.user.id);
+  const hasAccess = await agentRepository.checkAccess(
+    id,
+    session.user.id,
+    spaceId,
+  );
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const agent = await agentRepository.selectAgentById(id, session.user.id);
+  const agent = await agentRepository.selectAgentById(
+    id,
+    session.user.id,
+    spaceId,
+  );
   return Response.json(agent);
 }
 
@@ -51,8 +64,16 @@ export async function PUT(
     const body = await request.json();
     const data = AgentUpdateSchema.parse(body);
 
-    // Check access for write operations
-    const hasAccess = await agentRepository.checkAccess(id, session.user.id);
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+  // Check access for write operations
+  const hasAccess = await agentRepository.checkAccess(
+    id,
+    session.user.id,
+    spaceId,
+  );
     if (!hasAccess) {
       return new Response("Unauthorized", { status: 401 });
     }
@@ -61,6 +82,7 @@ export async function PUT(
     const existingAgent = await agentRepository.selectAgentById(
       id,
       session.user.id,
+      spaceId,
     );
     if (existingAgent && existingAgent.userId !== session.user.id) {
       data.visibility = existingAgent.visibility;
@@ -104,9 +126,14 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+    const { spaceId } = await validateUserAccessToCurrentSpace();
+    if (!spaceId) {
+      return new Response("Workspace required", { status: 400 });
+    }
     const hasAccess = await agentRepository.checkAccess(
       id,
       session.user.id,
+      spaceId,
       true, // destructive = true for delete operations
     );
     if (!hasAccess) {

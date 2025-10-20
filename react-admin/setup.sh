@@ -23,3 +23,5 @@ echo ""
 echo "🔐 Login with the same credentials you use for the main app"
 echo "🎉 Test the shared authentication between both apps!"
 
+
+

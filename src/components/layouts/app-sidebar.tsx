@@ -18,6 +18,7 @@ import { AppSidebarMenus } from "./app-sidebar-menus";
 import { AppSidebarAgents } from "./app-sidebar-agents";
 import { AppSidebarThreads } from "./app-sidebar-threads";
 import { ThemeLogo } from "ui/theme-logo";
+import { SpaceSelector } from "@/components/spaces/space-selector";
 
 import { isShortcutEvent, Shortcuts } from "lib/keyboard-shortcuts";
 import { AppSidebarUser } from "./app-sidebar-user";
@@ -77,6 +78,9 @@ export function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <div className="px-2 pt-1">
+          <SpaceSelector />
+        </div>
       </SidebarHeader>
 
       <SidebarContent className="mt-2 overflow-hidden relative">

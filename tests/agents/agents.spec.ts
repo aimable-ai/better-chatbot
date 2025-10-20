@@ -4,7 +4,12 @@ import { TEST_USERS } from "../constants/test-users";
 test.describe("Agent Access Spec", () => {
   test.use({ storageState: TEST_USERS.admin.authFile });
 
-  test("should access agents page when authenticated", async ({ page }) => {
+  test("should access agents page when authenticated (with fallback space)", async ({ page }) => {
+    // Ensure a space is selected for scoping
+    await page.context().addCookies([
+      // Purposely use a non-member space id to trigger fallback
+      { name: "current-space-id", value: "non-member-space", url: "http://localhost" },
+    ]);
     await page.goto("/agents");
     await page.waitForLoadState("networkidle");
 
@@ -17,6 +22,9 @@ test.describe("Agent Access Spec", () => {
   });
 
   test("should navigate to new agent page", async ({ page }) => {
+    await page.context().addCookies([
+      { name: "current-space-id", value: "test-space-id", url: "http://localhost" },
+    ]);
     await page.goto("/agent/new");
     await page.waitForLoadState("networkidle");
 
@@ -28,6 +36,9 @@ test.describe("Agent Access Spec", () => {
   });
 
   test("should have sidebar with agent list", async ({ page }) => {
+    await page.context().addCookies([
+      { name: "current-space-id", value: "test-space-id", url: "http://localhost" },
+    ]);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 

@@ -5,7 +5,9 @@ import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { generateUUID } from "lib/utils";
 
 export const pgAgentRepository: AgentRepository = {
-  async insertAgent(agent) {
+  async insertAgent(
+    agent: Parameters<AgentRepository["insertAgent"]>[0],
+  ) {
     const [result] = await db
       .insert(AgentSchema)
       .values({
@@ -14,8 +16,9 @@ export const pgAgentRepository: AgentRepository = {
         description: agent.description,
         icon: agent.icon,
         userId: agent.userId,
+        spaceId: agent.spaceId,
         instructions: agent.instructions,
-        visibility: agent.visibility || "private",
+        visibility: agent.visibility || "public",
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -29,7 +32,11 @@ export const pgAgentRepository: AgentRepository = {
     };
   },
 
-  async selectAgentById(id, userId): Promise<Agent | null> {
+  async selectAgentById(
+    id: string,
+    userId: string,
+    spaceId: string,
+  ): Promise<Agent | null> {
     const [result] = await db
       .select({
         id: AgentSchema.id,
@@ -37,6 +44,7 @@ export const pgAgentRepository: AgentRepository = {
         description: AgentSchema.description,
         icon: AgentSchema.icon,
         userId: AgentSchema.userId,
+        spaceId: AgentSchema.spaceId,
         instructions: AgentSchema.instructions,
         visibility: AgentSchema.visibility,
         createdAt: AgentSchema.createdAt,
@@ -55,10 +63,11 @@ export const pgAgentRepository: AgentRepository = {
       .where(
         and(
           eq(AgentSchema.id, id),
+          eq(AgentSchema.spaceId, spaceId),
           or(
-            eq(AgentSchema.userId, userId), // Own agent
-            eq(AgentSchema.visibility, "public"), // Public agent
-            eq(AgentSchema.visibility, "readonly"), // Readonly agent
+            eq(AgentSchema.userId, userId),
+            eq(AgentSchema.visibility, "public"),
+            eq(AgentSchema.visibility, "readonly"),
           ),
         ),
       );
@@ -74,7 +83,7 @@ export const pgAgentRepository: AgentRepository = {
     };
   },
 
-  async selectAgentsByUserId(userId) {
+  async selectAgentsByUserId(userId: string) {
     const results = await db
       .select({
         id: AgentSchema.id,
@@ -82,6 +91,7 @@ export const pgAgentRepository: AgentRepository = {
         description: AgentSchema.description,
         icon: AgentSchema.icon,
         userId: AgentSchema.userId,
+        spaceId: AgentSchema.spaceId,
         instructions: AgentSchema.instructions,
         visibility: AgentSchema.visibility,
         createdAt: AgentSchema.createdAt,
@@ -95,7 +105,6 @@ export const pgAgentRepository: AgentRepository = {
       .where(eq(AgentSchema.userId, userId))
       .orderBy(desc(AgentSchema.createdAt));
 
-    // Map database nulls to undefined and set defaults for owned agents
     return results.map((result) => ({
       ...result,
       description: result.description ?? undefined,
@@ -103,11 +112,15 @@ export const pgAgentRepository: AgentRepository = {
       instructions: result.instructions ?? {},
       userName: result.userName ?? undefined,
       userAvatar: result.userAvatar ?? undefined,
-      isBookmarked: false, // Always false for owned agents
+      isBookmarked: false,
     }));
   },
 
-  async updateAgent(id, userId, agent) {
+  async updateAgent(
+    id: string,
+    userId: string,
+    agent: Parameters<AgentRepository["updateAgent"]>[2],
+  ) {
     const [result] = await db
       .update(AgentSchema)
       .set({
@@ -116,12 +129,8 @@ export const pgAgentRepository: AgentRepository = {
       })
       .where(
         and(
-          // Only allow updates to agents owned by the user or public agents
           eq(AgentSchema.id, id),
-          or(
-            eq(AgentSchema.userId, userId),
-            eq(AgentSchema.visibility, "public"),
-          ),
+          or(eq(AgentSchema.userId, userId), eq(AgentSchema.visibility, "public")),
         ),
       )
       .returning();
@@ -134,20 +143,20 @@ export const pgAgentRepository: AgentRepository = {
     };
   },
 
-  async deleteAgent(id, userId) {
+  async deleteAgent(id: string, userId: string) {
     await db
       .delete(AgentSchema)
       .where(and(eq(AgentSchema.id, id), eq(AgentSchema.userId, userId)));
   },
 
   async selectAgents(
-    currentUserId,
-    filters = ["all"],
-    limit = 50,
+    currentUserId: string,
+    spaceId: string,
+    filters: ("all" | "mine" | "shared" | "bookmarked")[] = ["all"],
+    limit: number = 50,
   ): Promise<AgentSummary[]> {
     let orConditions: any[] = [];
 
-    // Build OR conditions based on filters array
     for (const filter of filters) {
       if (filter === "mine") {
         orConditions.push(eq(AgentSchema.userId, currentUserId));
@@ -155,40 +164,28 @@ export const pgAgentRepository: AgentRepository = {
         orConditions.push(
           and(
             ne(AgentSchema.userId, currentUserId),
-            or(
-              eq(AgentSchema.visibility, "public"),
-              eq(AgentSchema.visibility, "readonly"),
-            ),
+            or(eq(AgentSchema.visibility, "public"), eq(AgentSchema.visibility, "readonly")),
           ),
         );
       } else if (filter === "bookmarked") {
         orConditions.push(
           and(
             ne(AgentSchema.userId, currentUserId),
-            or(
-              eq(AgentSchema.visibility, "public"),
-              eq(AgentSchema.visibility, "readonly"),
-            ),
+            or(eq(AgentSchema.visibility, "public"), eq(AgentSchema.visibility, "readonly")),
             sql`${BookmarkSchema.id} IS NOT NULL`,
           ),
         );
       } else if (filter === "all") {
-        // All available agents (mine + shared) - this overrides other filters
         orConditions = [
           or(
-            // My agents
             eq(AgentSchema.userId, currentUserId),
-            // Shared agents
             and(
               ne(AgentSchema.userId, currentUserId),
-              or(
-                eq(AgentSchema.visibility, "public"),
-                eq(AgentSchema.visibility, "readonly"),
-              ),
+              or(eq(AgentSchema.visibility, "public"), eq(AgentSchema.visibility, "readonly")),
             ),
           ),
         ];
-        break; // "all" overrides everything else
+        break;
       }
     }
 
@@ -199,7 +196,7 @@ export const pgAgentRepository: AgentRepository = {
         description: AgentSchema.description,
         icon: AgentSchema.icon,
         userId: AgentSchema.userId,
-        // Exclude instructions from list queries for performance
+        spaceId: AgentSchema.spaceId,
         visibility: AgentSchema.visibility,
         createdAt: AgentSchema.createdAt,
         updatedAt: AgentSchema.updatedAt,
@@ -217,15 +214,18 @@ export const pgAgentRepository: AgentRepository = {
           eq(BookmarkSchema.userId, currentUserId),
         ),
       )
-      .where(orConditions.length > 1 ? or(...orConditions) : orConditions[0])
+      .where(
+        and(
+          eq(AgentSchema.spaceId, spaceId),
+          (orConditions.length > 1 ? or(...orConditions) : orConditions[0]),
+        ),
+      )
       .orderBy(
-        // My agents first, then other shared agents
         sql`CASE WHEN ${AgentSchema.userId} = ${currentUserId} THEN 0 ELSE 1 END`,
         desc(AgentSchema.createdAt),
       )
       .limit(limit);
 
-    // Map database nulls to undefined
     return results.map((result) => ({
       ...result,
       description: result.description ?? undefined,
@@ -235,17 +235,22 @@ export const pgAgentRepository: AgentRepository = {
     }));
   },
 
-  async checkAccess(agentId, userId, destructive = false) {
+  async checkAccess(
+    agentId: string,
+    userId: string,
+    spaceId: string,
+    destructive: boolean = false,
+  ) {
     const [agent] = await db
       .select({
         visibility: AgentSchema.visibility,
         userId: AgentSchema.userId,
+        spaceId: AgentSchema.spaceId,
       })
       .from(AgentSchema)
       .where(eq(AgentSchema.id, agentId));
-    if (!agent) {
-      return false;
-    }
+    if (!agent) return false;
+    if (agent.spaceId !== spaceId) return false;
     if (userId == agent.userId) return true;
     if (agent.visibility === "public" && !destructive) return true;
     return false;

@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { toast } from "sonner";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PromptInput from "./prompt-input";
 import clsx from "clsx";
 import { appStore } from "@/app/store";
@@ -454,7 +454,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
                   Array.isArray(clientFiles) &&
                   clientFiles.length > 0;
                 return (
-                  <>
+                  <Fragment key={message.id}>
                     {showInlinePreview && (
                       <div className="w-full mx-auto max-w-3xl px-6 relative">
                         <div className="px-5 pt-2 flex justify-end">
@@ -495,7 +495,6 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
                       threadId={threadId}
                       messageIndex={index}
                       prevMessage={messages[index - 1]}
-                      key={message.id}
                       message={message}
                       status={status}
                       addToolResult={addToolResult}
@@ -512,7 +511,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
                           : ""
                       }
                     />
-                  </>
+                  </Fragment>
                 );
               })}
               {space && (

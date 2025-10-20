@@ -2,6 +2,7 @@ import EditAgent from "@/components/agent/edit-agent";
 import { agentRepository } from "lib/db/repository";
 import { getSession } from "auth/server";
 import { notFound, redirect } from "next/navigation";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export default async function AgentPage({
   params,
@@ -20,8 +21,14 @@ export default async function AgentPage({
     return <EditAgent userId={session.user.id} />;
   }
 
-  // Fetch the agent data on the server
-  const agent = await agentRepository.selectAgentById(id, session.user.id);
+  // Fetch the agent data on the server scoped to current space
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) notFound();
+  const agent = await agentRepository.selectAgentById(
+    id,
+    session.user.id,
+    spaceId,
+  );
 
   if (!agent) {
     notFound();

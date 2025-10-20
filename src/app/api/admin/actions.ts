@@ -16,9 +16,6 @@ import logger from "lib/logger";
 import { getTranslations } from "next-intl/server";
 import { getUser } from "lib/user/server";
 import { userRepository } from "lib/db/repository";
-import { hash } from "bcrypt-ts";
-import { pgDb } from "lib/db/pg/db.pg";
-import { UserSchema } from "lib/db/pg/schema.pg";
 
 export const updateUserRolesAction = validatedActionWithAdminPermission(
   UpdateUserRoleSchema,
@@ -141,25 +138,24 @@ export const createUserAction = validatedActionWithAdminPermission(
       // Determine target role upfront
       const targetRole = role || DEFAULT_USER_ROLE;
 
-      // Hash the password
-      const hashedPassword = await hash(password, 12);
-
-      // Create user directly in database (bypasses disableSignUp restriction)
-      const [newUser] = await pgDb
-        .insert(UserSchema)
-        .values({
+      // Use Better Auth's admin API to create user with proper password hashing
+      // This bypasses the disableSignUp restriction for admin-created users
+      const { user: newUser } = await auth.api.createUser({
+        body: {
           email,
+          password,
           name,
-          password: hashedPassword,
           role: targetRole,
-          emailVerified: true, // Admin-created users are pre-verified
-        })
-        .returning();
+        },
+        headers: await headers(),
+      });
 
-      const user = newUser;
+      if (!newUser) {
+        throw new Error("User creation failed");
+      }
 
       // Get updated user data
-      const createdUser = await getUser(user.id);
+      const createdUser = await getUser(newUser.id);
 
       return {
         success: true,

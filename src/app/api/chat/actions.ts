@@ -33,6 +33,7 @@ import { JSONSchema7 } from "json-schema";
 import { ObjectJsonSchema7 } from "app-types/util";
 import { jsonSchemaToZod } from "lib/json-schema-to-zod";
 import { Agent } from "app-types/agent";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function getUserId() {
   const session = await getSession();
@@ -219,7 +220,9 @@ export async function rememberAgentAction(
   const key = CacheKeys.agentInstructions(agent);
   let cachedAgent = await serverCache.get<Agent | null>(key);
   if (!cachedAgent) {
-    cachedAgent = await agentRepository.selectAgentById(agent, userId);
+    const { spaceId } = await validateUserAccessToCurrentSpace();
+    if (!spaceId) return undefined;
+    cachedAgent = await agentRepository.selectAgentById(agent, userId, spaceId);
     await serverCache.set(key, cachedAgent);
   }
   return cachedAgent as Agent | undefined;

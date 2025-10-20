@@ -46,12 +46,15 @@ export const AgentSchema = pgTable("agent", {
   userId: uuid("user_id")
     .notNull()
     .references(() => UserSchema.id, { onDelete: "cascade" }),
+  spaceId: uuid("space_id")
+    .notNull()
+    .references(() => SpaceSchema.id, { onDelete: "cascade" }),
   instructions: json("instructions").$type<Agent["instructions"]>(),
   visibility: varchar("visibility", {
     enum: ["public", "private", "readonly"],
   })
     .notNull()
-    .default("private"),
+    .default("public"),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
