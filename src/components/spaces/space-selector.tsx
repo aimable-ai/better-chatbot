@@ -19,7 +19,7 @@ import {
   LoaderCircle
 } from "lucide-react";
 import { cn } from "lib/utils";
-import { Dialog, DialogContent } from "ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "ui/dialog";
 import { useRouter } from "next/navigation";
 
 type SpaceItem = {
@@ -227,6 +227,7 @@ export function SpaceSelector() {
     {/* Loading Modal */}
     <Dialog open={isSwitching} onOpenChange={() => {}}>
       <DialogContent hideClose className="max-w-sm shadow-2xl">
+        <DialogTitle className="sr-only">Switching Space</DialogTitle>
         <div className="flex flex-col items-center justify-center py-6 space-y-4">
           <LoaderCircle className="size-6 animate-spin text-muted-foreground opacity-70" />
           <div className="text-center">

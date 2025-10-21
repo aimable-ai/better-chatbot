@@ -68,7 +68,13 @@ export async function selectThreadWithMessagesAction(threadId: string) {
   if (!session) {
     throw new Error("Unauthorized");
   }
-  const thread = await chatRepository.selectThread(threadId);
+
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    throw new Error("Space required");
+  }
+
+  const thread = await chatRepository.selectThread(threadId, spaceId);
 
   if (!thread) {
     logger.error("Thread not found", threadId);
@@ -86,7 +92,11 @@ export async function deleteMessageAction(messageId: string) {
 }
 
 export async function deleteThreadAction(threadId: string) {
-  await chatRepository.deleteThread(threadId);
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    throw new Error("Space required");
+  }
+  await chatRepository.deleteThread(threadId, spaceId);
 }
 
 export async function deleteMessagesByChatIdAfterTimestampAction(
@@ -101,17 +111,29 @@ export async function updateThreadAction(
   thread: Partial<Omit<ChatThread, "createdAt" | "updatedAt" | "userId">>,
 ) {
   const userId = await getUserId();
-  await chatRepository.updateThread(id, { ...thread, userId });
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    throw new Error("Space required");
+  }
+  await chatRepository.updateThread(id, spaceId, { ...thread, userId });
 }
 
 export async function deleteThreadsAction() {
   const userId = await getUserId();
-  await chatRepository.deleteAllThreads(userId);
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    throw new Error("Space required");
+  }
+  await chatRepository.deleteAllThreads(userId, spaceId);
 }
 
 export async function deleteUnarchivedThreadsAction() {
   const userId = await getUserId();
-  await chatRepository.deleteUnarchivedThreads(userId);
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    throw new Error("Space required");
+  }
+  await chatRepository.deleteUnarchivedThreads(userId, spaceId);
 }
 
 export async function generateExampleToolSchemaAction(options: {

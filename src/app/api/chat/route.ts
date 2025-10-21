@@ -34,6 +34,8 @@ import {
 } from "lib/ai/prompts";
 import { chatApiSchemaRequestBodySchema, ChatMetadata } from "app-types/chat";
 
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
+
 import { errorIf, safe } from "ts-safe";
 
 import {
@@ -69,6 +71,12 @@ export async function POST(request: Request) {
     if (!session?.user.id) {
       return new Response("Unauthorized", { status: 401 });
     }
+
+    const { spaceId } = await validateUserAccessToCurrentSpace();
+    if (!spaceId) {
+      return new Response("Space required", { status: 400 });
+    }
+
     const {
       id,
       message,
@@ -85,7 +93,7 @@ export async function POST(request: Request) {
 
     const model = customModelProvider.getModel(chatModel);
 
-    let thread = await chatRepository.selectThreadDetails(id);
+    let thread = await chatRepository.selectThreadDetails(id, spaceId);
 
     if (!thread) {
       logger.info(`create chat thread: ${id}`);
@@ -93,8 +101,9 @@ export async function POST(request: Request) {
         id,
         title: "",
         userId: session.user.id,
+        spaceId,
       });
-      thread = await chatRepository.selectThreadDetails(newThread.id);
+      thread = await chatRepository.selectThreadDetails(newThread.id, spaceId);
     }
 
     if (thread!.userId !== session.user.id) {

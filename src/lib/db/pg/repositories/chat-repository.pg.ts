@@ -19,6 +19,7 @@ export const pgChatRepository: ChatRepository = {
       .values({
         title: thread.title,
         userId: thread.userId,
+        spaceId: thread.spaceId,
         id: thread.id,
       })
       .returning();
@@ -29,15 +30,15 @@ export const pgChatRepository: ChatRepository = {
     await db.delete(ChatMessageSchema).where(eq(ChatMessageSchema.id, id));
   },
 
-  selectThread: async (id: string): Promise<ChatThread | null> => {
+  selectThread: async (id: string, spaceId: string): Promise<ChatThread | null> => {
     const [result] = await db
       .select()
       .from(ChatThreadSchema)
-      .where(eq(ChatThreadSchema.id, id));
+      .where(and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)));
     return result;
   },
 
-  selectThreadDetails: async (id: string) => {
+  selectThreadDetails: async (id: string, spaceId: string) => {
     if (!id) {
       return null;
     }
@@ -45,7 +46,7 @@ export const pgChatRepository: ChatRepository = {
       .select()
       .from(ChatThreadSchema)
       .leftJoin(UserSchema, eq(ChatThreadSchema.userId, UserSchema.id))
-      .where(eq(ChatThreadSchema.id, id));
+      .where(and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)));
 
     if (!thread) {
       return null;
@@ -56,6 +57,7 @@ export const pgChatRepository: ChatRepository = {
       id: thread.chat_thread.id,
       title: thread.chat_thread.title,
       userId: thread.chat_thread.userId,
+      spaceId: thread.chat_thread.spaceId,
       createdAt: thread.chat_thread.createdAt,
       userPreferences: thread.user?.preferences ?? undefined,
       messages,
@@ -75,6 +77,7 @@ export const pgChatRepository: ChatRepository = {
 
   selectThreadsByUserId: async (
     userId: string,
+    spaceId: string,
   ): Promise<
     (ChatThread & {
       lastMessageAt: number;
@@ -86,6 +89,7 @@ export const pgChatRepository: ChatRepository = {
         title: ChatThreadSchema.title,
         createdAt: ChatThreadSchema.createdAt,
         userId: ChatThreadSchema.userId,
+        spaceId: ChatThreadSchema.spaceId,
         lastMessageAt: sql<string>`MAX(${ChatMessageSchema.createdAt})`.as(
           "last_message_at",
         ),
@@ -95,7 +99,7 @@ export const pgChatRepository: ChatRepository = {
         ChatMessageSchema,
         eq(ChatThreadSchema.id, ChatMessageSchema.threadId),
       )
-      .where(eq(ChatThreadSchema.userId, userId))
+      .where(and(eq(ChatThreadSchema.userId, userId), eq(ChatThreadSchema.spaceId, spaceId)))
       .groupBy(ChatThreadSchema.id)
       .orderBy(desc(sql`last_message_at`));
 
@@ -104,6 +108,7 @@ export const pgChatRepository: ChatRepository = {
         id: row.threadId,
         title: row.title,
         userId: row.userId,
+        spaceId: row.spaceId,
         createdAt: row.createdAt,
         lastMessageAt: row.lastMessageAt
           ? new Date(row.lastMessageAt).getTime()
@@ -114,6 +119,7 @@ export const pgChatRepository: ChatRepository = {
 
   updateThread: async (
     id: string,
+    spaceId: string,
     thread: Partial<Omit<ChatThread, "id" | "createdAt">>,
   ): Promise<ChatThread> => {
     const [result] = await db
@@ -121,12 +127,12 @@ export const pgChatRepository: ChatRepository = {
       .set({
         title: thread.title,
       })
-      .where(eq(ChatThreadSchema.id, id))
+      .where(and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)))
       .returning();
     return result;
   },
   upsertThread: async (
-    thread: Omit<ChatThread, "createdAt">,
+    thread: PartialBy<Omit<ChatThread, "createdAt">, "userId">,
   ): Promise<ChatThread> => {
     const [result] = await db
       .insert(ChatThreadSchema)
@@ -141,7 +147,7 @@ export const pgChatRepository: ChatRepository = {
     return result;
   },
 
-  deleteThread: async (id: string): Promise<void> => {
+  deleteThread: async (id: string, spaceId: string): Promise<void> => {
     // 1. Delete all messages in the thread
     await db
       .delete(ChatMessageSchema)
@@ -151,7 +157,9 @@ export const pgChatRepository: ChatRepository = {
     await db.delete(ArchiveItemSchema).where(eq(ArchiveItemSchema.itemId, id));
 
     // 3. Delete the thread itself
-    await db.delete(ChatThreadSchema).where(eq(ChatThreadSchema.id, id));
+    await db
+      .delete(ChatThreadSchema)
+      .where(and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)));
   },
 
   insertMessage: async (
@@ -206,17 +214,17 @@ export const pgChatRepository: ChatRepository = {
       );
   },
 
-  deleteAllThreads: async (userId: string): Promise<void> => {
+  deleteAllThreads: async (userId: string, spaceId: string): Promise<void> => {
     const threadIds = await db
       .select({ id: ChatThreadSchema.id })
       .from(ChatThreadSchema)
-      .where(eq(ChatThreadSchema.userId, userId));
+      .where(and(eq(ChatThreadSchema.userId, userId), eq(ChatThreadSchema.spaceId, spaceId)));
     await Promise.all(
-      threadIds.map((threadId) => pgChatRepository.deleteThread(threadId.id)),
+      threadIds.map((threadId) => pgChatRepository.deleteThread(threadId.id, spaceId)),
     );
   },
 
-  deleteUnarchivedThreads: async (userId: string): Promise<void> => {
+  deleteUnarchivedThreads: async (userId: string, spaceId: string): Promise<void> => {
     const unarchivedThreadIds = await db
       .select({ id: ChatThreadSchema.id })
       .from(ChatThreadSchema)
@@ -227,13 +235,14 @@ export const pgChatRepository: ChatRepository = {
       .where(
         and(
           eq(ChatThreadSchema.userId, userId),
+          eq(ChatThreadSchema.spaceId, spaceId),
           sql`${ArchiveItemSchema.id} IS NULL`,
         ),
       );
 
     await Promise.all(
       unarchivedThreadIds.map((threadId) =>
-        pgChatRepository.deleteThread(threadId.id),
+        pgChatRepository.deleteThread(threadId.id, spaceId),
       ),
     );
   },
@@ -246,5 +255,23 @@ export const pgChatRepository: ChatRepository = {
       .values(messages)
       .returning();
     return result as ChatMessage[];
+  },
+
+  checkAccess: async (threadId: string, userId: string, spaceId: string): Promise<boolean> => {
+    const [thread] = await db
+      .select({
+        userId: ChatThreadSchema.userId,
+        spaceId: ChatThreadSchema.spaceId,
+      })
+      .from(ChatThreadSchema)
+      .where(and(eq(ChatThreadSchema.id, threadId), eq(ChatThreadSchema.spaceId, spaceId)));
+    
+    if (!thread) {
+      return false;
+    }
+    
+    // Chat threads are private to the user who created them
+    // Only the creator can access their own threads, even within the same space
+    return userId === thread.userId;
   },
 };

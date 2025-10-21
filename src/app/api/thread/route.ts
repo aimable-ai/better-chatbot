@@ -1,5 +1,6 @@
 import { getSession } from "auth/server";
 import { chatRepository } from "lib/db/repository";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET() {
   const session = await getSession();
@@ -8,6 +9,11 @@ export async function GET() {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const threads = await chatRepository.selectThreadsByUserId(session.user.id);
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
+  const threads = await chatRepository.selectThreadsByUserId(session.user.id, spaceId);
   return Response.json(threads);
 }

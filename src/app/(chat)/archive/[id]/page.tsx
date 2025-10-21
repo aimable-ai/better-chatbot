@@ -50,10 +50,15 @@ async function getArchiveWithThreads(
   const { spaceId } = await validateUserAccessToCurrentSpace();
   if (!spaceId) return null;
 
-  const [archive, archiveItems] = await Promise.all([
-    archiveRepository.getArchiveById(archiveId, spaceId),
-    archiveRepository.getArchiveItems(archiveId, spaceId),
-  ]);
+  const archive = await archiveRepository.getArchiveById(archiveId, spaceId);
+  if (!archive) return null;
+
+  let archiveItems;
+  try {
+    archiveItems = await archiveRepository.getArchiveItems(archiveId, spaceId);
+  } catch (error) {
+    return null;
+  }
 
   if (!archive || archive.userId !== session.user.id) return null;
 
@@ -65,6 +70,7 @@ async function getArchiveWithThreads(
 
   const allThreads = await chatRepository.selectThreadsByUserId(
     session.user.id,
+    spaceId,
   );
   const threads = allThreads
     .filter((thread) => threadIds.includes(thread.id))
@@ -85,7 +91,12 @@ export default async function ArchivePage({
     redirect("/sign-in");
   }
 
-  const archive = await getArchiveWithThreads(id);
+  let archive;
+  try {
+    archive = await getArchiveWithThreads(id);
+  } catch (error) {
+    redirect("/");
+  }
 
   if (!archive) {
     redirect("/");

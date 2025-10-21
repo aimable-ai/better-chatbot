@@ -24,6 +24,9 @@ export const ChatThreadSchema = pgTable("chat_thread", {
   userId: uuid("user_id")
     .notNull()
     .references(() => UserSchema.id, { onDelete: "cascade" }),
+  spaceId: uuid("space_id")
+    .notNull()
+    .references(() => SpaceSchema.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

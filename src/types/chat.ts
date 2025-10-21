@@ -25,6 +25,7 @@ export type ChatThread = {
   id: string;
   title: string;
   userId: string;
+  spaceId: string;
   createdAt: Date;
 };
 
@@ -110,11 +111,11 @@ export type ChatApiSchemaRequestBody = z.infer<
 export type ChatRepository = {
   insertThread(thread: Omit<ChatThread, "createdAt">): Promise<ChatThread>;
 
-  selectThread(id: string): Promise<ChatThread | null>;
+  selectThread(id: string, spaceId: string): Promise<ChatThread | null>;
 
   deleteChatMessage(id: string): Promise<void>;
 
-  selectThreadDetails(id: string): Promise<
+  selectThreadDetails(id: string, spaceId: string): Promise<
     | (ChatThread & {
         messages: ChatMessage[];
         userPreferences?: UserPreferences;
@@ -124,7 +125,7 @@ export type ChatRepository = {
 
   selectMessagesByThreadId(threadId: string): Promise<ChatMessage[]>;
 
-  selectThreadsByUserId(userId: string): Promise<
+  selectThreadsByUserId(userId: string, spaceId: string): Promise<
     (ChatThread & {
       lastMessageAt: number;
     })[]
@@ -132,10 +133,11 @@ export type ChatRepository = {
 
   updateThread(
     id: string,
+    spaceId: string,
     thread: Partial<Omit<ChatThread, "id" | "createdAt">>,
   ): Promise<ChatThread>;
 
-  deleteThread(id: string): Promise<void>;
+  deleteThread(id: string, spaceId: string): Promise<void>;
 
   upsertThread(
     thread: PartialBy<Omit<ChatThread, "createdAt">, "userId">,
@@ -146,13 +148,15 @@ export type ChatRepository = {
 
   deleteMessagesByChatIdAfterTimestamp(messageId: string): Promise<void>;
 
-  deleteAllThreads(userId: string): Promise<void>;
+  deleteAllThreads(userId: string, spaceId: string): Promise<void>;
 
-  deleteUnarchivedThreads(userId: string): Promise<void>;
+  deleteUnarchivedThreads(userId: string, spaceId: string): Promise<void>;
 
   insertMessages(
     messages: PartialBy<ChatMessage, "createdAt">[],
   ): Promise<ChatMessage[]>;
+
+  checkAccess(threadId: string, userId: string, spaceId: string): Promise<boolean>;
 };
 
 export const ManualToolConfirmTag = tag<{
