@@ -9,8 +9,8 @@ export function SWRConfigProvider({
 }) {
   useEffect(() => {
     console.log(
-      "%c█▄▄ █▀▀ ▀█▀ ▀█▀ █▀▀ █▀█\n█▄█ █▄▄  █   █  █▄▄ █▀▄\n\n%c⛓️ Just a Better Chatbot\nhttps://github.com/cgoinglove/better-chatbot",
-      "color: #00d4ff; font-weight: bold; font-family: monospace; font-size: 16px; text-shadow: 0 0 10px #00d4ff;",
+      "%c\n\n               #########               \n              ###########              \n             #############             \n            ###############            \n           #################           \n          ###       #########          \n         #####       #########         \n        #######       #########        \n       ########        #########       \n      #########         #########      \n     #########           #########     \n    #########             #########    \n   #########               #########   \n\n\n%c⛓️ Aimable Chat Client\nhttps://www.aimable.ai",
+      "color: #084be4; font-weight: bold; font-family: monospace; font-size: 12px; text-shadow: 0 0 10px #084be4;",
       "color: #888; font-size: 12px;",
     );
   }, []);

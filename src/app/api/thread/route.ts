@@ -11,7 +11,7 @@ export async function GET() {
 
   const { spaceId } = await validateUserAccessToCurrentSpace();
   if (!spaceId) {
-    return new Response("Workspace required", { status: 400 });
+    return new Response("Space required", { status: 400 });
   }
 
   const threads = await chatRepository.selectThreadsByUserId(session.user.id, spaceId);
