@@ -262,9 +262,10 @@ class AdminPanel {
       return;
     }
 
-    // Validate password length
-    if (password.length < 8) {
-      alert("Password must be at least 8 characters long");
+    // Validate password requirements
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,20}$/;
+    if (!passwordRegex.test(password)) {
+      alert("Password must be 8-20 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
       return;
     }
 

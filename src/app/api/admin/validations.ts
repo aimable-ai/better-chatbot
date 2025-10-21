@@ -4,6 +4,7 @@ import { USER_ROLES, UserRoleNames } from "app-types/roles";
 import { ActionState } from "lib/action-utils";
 import { BasicUserWithLastLogin } from "app-types/user";
 import { spacesRepository } from "lib/spaces/repository";
+import { passwordSchema } from "lib/validations/password";
 
 export const UpdateUserRoleSchema = z.object({
   userId: z.uuid("Invalid user ID"),
@@ -21,7 +22,7 @@ export const UpdateUserBanStatusSchema = z.object({
 export const CreateUserSchema = z.object({
   email: z.string().email("Invalid email address"),
   name: z.string().min(1, "Name is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: passwordSchema,
   role: z
     .enum(Object.values(USER_ROLES) as [UserRoleNames, ...UserRoleNames[]])
     .optional()
