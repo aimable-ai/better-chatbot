@@ -118,8 +118,8 @@ export function SpaceSelector() {
     document.cookie = `current-space-id=${id}; path=/;`;
     setCurrentId(id);
     
-    // Use router.refresh() instead of window.location.reload()
-    router.refresh();
+    // Navigate to home page without refreshing
+    router.push('/');
     
     // Close modal after a short delay to show the loading state
     setTimeout(() => {
