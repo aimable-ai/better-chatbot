@@ -145,11 +145,19 @@ export function SpaceSelector() {
         >
           <Avatar className="size-6 shrink-0">
             <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
-              {currentSpace ? getSpaceInitials(currentSpace.name) : <SpaceIcon className="size-3" />}
+              {isLoading ? (
+                <LoaderCircle className="size-3 animate-spin" />
+              ) : currentSpace ? (
+                getSpaceInitials(currentSpace.name)
+              ) : (
+                <SpaceIcon className="size-3" />
+              )}
             </AvatarFallback>
           </Avatar>
           <span className="font-medium text-sm truncate flex-1 text-left">
-            {currentSpace?.name || "Select workspace"}
+            {isLoading ? (
+              "Loading workspace..."
+            ) : currentSpace?.name || "Select workspace"}
           </span>
           <ChevronDown className="size-4 opacity-70 shrink-0" />
         </Button>

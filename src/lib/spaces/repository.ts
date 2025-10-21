@@ -12,8 +12,11 @@ import { SPACE_RETENTION_DAYS } from "./config";
 
 export const spacesRepository = {
   // Spaces
-  async createSpace(name: string): Promise<SpaceEntity> {
-    const [space] = await pgDb.insert(SpaceSchema).values({ name }).returning();
+  async createSpace(name: string, options?: { isPersonal?: boolean }): Promise<SpaceEntity> {
+    const [space] = await pgDb.insert(SpaceSchema).values({ 
+      name, 
+      isPersonal: options?.isPersonal || false 
+    }).returning();
     return space as SpaceEntity;
   },
   async getSpaceById(spaceId: string): Promise<SpaceEntity | undefined> {
@@ -41,6 +44,7 @@ export const spacesRepository = {
         id: SpaceSchema.id,
         name: SpaceSchema.name,
         status: SpaceSchema.status,
+        isPersonal: SpaceSchema.isPersonal,
         archivedAt: SpaceSchema.archivedAt,
         archivedBy: SpaceSchema.archivedBy,
         deletedAt: SpaceSchema.deletedAt,
@@ -56,6 +60,37 @@ export const spacesRepository = {
       .where(eq(SpaceMemberSchema.userId, userId));
 
     return rows as SpaceEntity[];
+  },
+
+  async getPersonalSpaceForUser(userId: string): Promise<SpaceEntity | undefined> {
+    // Get personal space where user is a member
+    const [space] = await pgDb
+      .select({
+        id: SpaceSchema.id,
+        name: SpaceSchema.name,
+        status: SpaceSchema.status,
+        isPersonal: SpaceSchema.isPersonal,
+        archivedAt: SpaceSchema.archivedAt,
+        archivedBy: SpaceSchema.archivedBy,
+        deletedAt: SpaceSchema.deletedAt,
+        deletedBy: SpaceSchema.deletedBy,
+        createdAt: SpaceSchema.createdAt,
+        updatedAt: SpaceSchema.updatedAt,
+      })
+      .from(SpaceSchema)
+      .innerJoin(
+        SpaceMemberSchema,
+        eq(SpaceSchema.id, SpaceMemberSchema.spaceId),
+      )
+      .where(
+        and(
+          eq(SpaceMemberSchema.userId, userId),
+          eq(SpaceSchema.isPersonal, true),
+          eq(SpaceSchema.status, "active")
+        )
+      );
+
+    return space as SpaceEntity | undefined;
   },
 
   // Memberships

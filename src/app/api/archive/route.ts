@@ -2,6 +2,7 @@ import { archiveRepository } from "lib/db/repository";
 import { getSession } from "auth/server";
 import { z } from "zod";
 import { ArchiveCreateSchema } from "app-types/archive";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET() {
   const session = await getSession();
@@ -10,9 +11,15 @@ export async function GET() {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   try {
     const archives = await archiveRepository.getArchivesByUserId(
       session.user.id,
+      spaceId,
     );
     return Response.json(archives);
   } catch (error) {
@@ -28,6 +35,11 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   try {
     const body = await request.json();
     const data = ArchiveCreateSchema.parse(body);
@@ -36,6 +48,7 @@ export async function POST(request: Request) {
       name: data.name,
       description: data.description || null,
       userId: session.user.id,
+      spaceId,
     });
 
     return Response.json(archive);

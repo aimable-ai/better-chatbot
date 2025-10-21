@@ -3,6 +3,7 @@ import { getSession } from "lib/auth/auth-instance";
 import { pgDb } from "lib/db/pg/db.pg";
 import { SpaceMemberSchema, SpaceSchema } from "lib/db/pg/schema.pg";
 import { eq } from "drizzle-orm";
+import { canAccessPersonalSpace } from "lib/spaces/permissions";
 
 export async function GET() {
   const session = await getSession();
@@ -18,13 +19,24 @@ export async function GET() {
   }
 
   // Else: list spaces where user is a member
-  const spaces = await pgDb
+  const allSpaces = await pgDb
     .select()
     .from(SpaceSchema)
     .innerJoin(SpaceMemberSchema, eq(SpaceMemberSchema.spaceId, SpaceSchema.id))
     .where(eq(SpaceMemberSchema.userId, userId));
 
-  return NextResponse.json({ spaces });
+  // Filter out personal spaces that user shouldn't see
+  const filteredSpaces: typeof allSpaces = [];
+  for (const spaceRow of allSpaces) {
+    const space = spaceRow.space;
+    const access = await canAccessPersonalSpace(space.id, userId, session.user.role || "");
+    
+    if (access.canAccess) {
+      filteredSpaces.push(spaceRow);
+    }
+  }
+
+  return NextResponse.json({ spaces: filteredSpaces });
 }
 
 export async function POST(req: NextRequest) {

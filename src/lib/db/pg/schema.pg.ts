@@ -280,6 +280,9 @@ export const ArchiveSchema = pgTable("archive", {
   userId: uuid("user_id")
     .notNull()
     .references(() => UserSchema.id, { onDelete: "cascade" }),
+  spaceId: uuid("space_id")
+    .notNull()
+    .references(() => SpaceSchema.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -341,6 +344,7 @@ export const SpaceSchema = pgTable("space", {
   })
     .notNull()
     .default("active"),
+  isPersonal: boolean("is_personal").notNull().default(false),
   archivedAt: timestamp("archived_at"),
   archivedBy: uuid("archived_by").references(() => UserSchema.id),
   deletedAt: timestamp("deleted_at"),

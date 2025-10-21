@@ -1,6 +1,7 @@
 import { archiveRepository } from "lib/db/repository";
 import { getSession } from "auth/server";
 import { z } from "zod";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 const AddItemSchema = z.object({
   itemId: z.string(),
@@ -16,11 +17,16 @@ export async function GET(
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   const { id } = await params;
 
   try {
     // Check if archive exists and user owns it
-    const archive = await archiveRepository.getArchiveById(id);
+    const archive = await archiveRepository.getArchiveById(id, spaceId);
 
     if (!archive) {
       return Response.json({ error: "Archive not found" }, { status: 404 });
@@ -30,7 +36,7 @@ export async function GET(
       return new Response("Forbidden", { status: 403 });
     }
 
-    const items = await archiveRepository.getArchiveItems(id);
+    const items = await archiveRepository.getArchiveItems(id, spaceId);
     return Response.json(items);
   } catch (error) {
     console.error("Failed to fetch archive items:", error);
@@ -48,11 +54,16 @@ export async function POST(
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   const { id } = await params;
 
   try {
     // Check if archive exists and user owns it
-    const archive = await archiveRepository.getArchiveById(id);
+    const archive = await archiveRepository.getArchiveById(id, spaceId);
 
     if (!archive) {
       return Response.json({ error: "Archive not found" }, { status: 404 });
@@ -69,6 +80,7 @@ export async function POST(
       id,
       data.itemId,
       session.user.id,
+      spaceId,
     );
 
     return Response.json(item);

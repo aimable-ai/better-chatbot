@@ -15,6 +15,7 @@ export type Archive = {
   name: string;
   description: string | null;
   userId: string;
+  spaceId: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -35,20 +36,23 @@ export type ArchiveRepository = {
   createArchive(
     archive: Omit<Archive, "id" | "createdAt" | "updatedAt">,
   ): Promise<Archive>;
-  getArchivesByUserId(userId: string): Promise<ArchiveWithItemCount[]>;
-  getArchiveById(id: string): Promise<Archive | null>;
+  getArchivesByUserId(userId: string, spaceId: string): Promise<ArchiveWithItemCount[]>;
+  getArchiveById(id: string, spaceId: string): Promise<Archive | null>;
   updateArchive(
     id: string,
+    spaceId: string,
     archive: Partial<Omit<Archive, "id" | "createdAt" | "updatedAt">>,
   ): Promise<Archive>;
-  deleteArchive(id: string): Promise<void>;
+  deleteArchive(id: string, spaceId: string): Promise<void>;
 
   addItemToArchive(
     archiveId: string,
     itemId: string,
     userId: string,
+    spaceId: string,
   ): Promise<ArchiveItem>;
-  removeItemFromArchive(archiveId: string, itemId: string): Promise<void>;
-  getArchiveItems(archiveId: string): Promise<ArchiveItem[]>;
-  getItemArchives(itemId: string, userId: string): Promise<Archive[]>;
+  removeItemFromArchive(archiveId: string, itemId: string, spaceId: string): Promise<void>;
+  getArchiveItems(archiveId: string, spaceId: string): Promise<ArchiveItem[]>;
+  getItemArchives(itemId: string, userId: string, spaceId: string): Promise<Archive[]>;
+  checkAccess(archiveId: string, userId: string, spaceId: string): Promise<boolean>;
 };

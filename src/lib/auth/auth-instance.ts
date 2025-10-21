@@ -70,9 +70,9 @@ const options = {
           // Use our optimized getIsFirstUser function with caching
           const isFirstUser = await getIsFirstUser();
 
-          // If role is already set (e.g., by admin API), respect it
-          // Otherwise, set role based on whether this is the first user
-          const role = user.role || (isFirstUser ? USER_ROLES.ADMIN : DEFAULT_USER_ROLE);
+          // Always override role for first user, regardless of what Better Auth set
+          // For non-first users, use the role that was already set (usually DEFAULT_USER_ROLE)
+          const role = isFirstUser ? USER_ROLES.ADMIN : user.role;
 
           logger.info(
             `User creation hook: ${user.email} will get role: ${role} (isFirstUser: ${isFirstUser}, existingRole: ${user.role})`,

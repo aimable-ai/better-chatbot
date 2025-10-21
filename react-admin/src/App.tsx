@@ -58,7 +58,7 @@ function App() {
       const loginResult = await authClient.signIn.email({
         email,
         password,
-        callbackURL: "/",
+        callbackURL: "/api/auth/post-login-redirect",
       });
       console.log("Login result:", loginResult);
 

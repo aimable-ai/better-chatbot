@@ -21,8 +21,8 @@ import { spacesRepository } from "lib/spaces/repository";
 // Helper function to create a personal space for a user
 async function createPersonalSpaceForUser(userId: string) {
   try {
-    // Create the personal space
-    const personalSpace = await spacesRepository.createSpace("Personal");
+    // Create the personal space with isPersonal=true
+    const personalSpace = await spacesRepository.createSpace("My Personal Space", { isPersonal: true });
     
     // Add user as owner of the space
     await spacesRepository.upsertMember(personalSpace.id, userId, "owner");

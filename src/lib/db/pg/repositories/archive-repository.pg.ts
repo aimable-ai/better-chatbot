@@ -18,6 +18,7 @@ export const pgArchiveRepository: ArchiveRepository = {
         name: archive.name,
         description: archive.description,
         userId: archive.userId,
+        spaceId: archive.spaceId,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -25,13 +26,14 @@ export const pgArchiveRepository: ArchiveRepository = {
     return result as Archive;
   },
 
-  async getArchivesByUserId(userId) {
+  async getArchivesByUserId(userId: string, spaceId: string) {
     const result = await db
       .select({
         id: ArchiveSchema.id,
         name: ArchiveSchema.name,
         description: ArchiveSchema.description,
         userId: ArchiveSchema.userId,
+        spaceId: ArchiveSchema.spaceId,
         createdAt: ArchiveSchema.createdAt,
         updatedAt: ArchiveSchema.updatedAt,
         itemCount: count(ArchiveItemSchema.id),
@@ -41,7 +43,7 @@ export const pgArchiveRepository: ArchiveRepository = {
         ArchiveItemSchema,
         eq(ArchiveSchema.id, ArchiveItemSchema.archiveId),
       )
-      .where(eq(ArchiveSchema.userId, userId))
+      .where(and(eq(ArchiveSchema.userId, userId), eq(ArchiveSchema.spaceId, spaceId)))
       .groupBy(ArchiveSchema.id)
       .orderBy(ArchiveSchema.updatedAt);
 
@@ -51,15 +53,15 @@ export const pgArchiveRepository: ArchiveRepository = {
     })) as ArchiveWithItemCount[];
   },
 
-  async getArchiveById(id) {
+  async getArchiveById(id: string, spaceId: string) {
     const [result] = await db
       .select()
       .from(ArchiveSchema)
-      .where(eq(ArchiveSchema.id, id));
+      .where(and(eq(ArchiveSchema.id, id), eq(ArchiveSchema.spaceId, spaceId)));
     return result as Archive | null;
   },
 
-  async updateArchive(id, archive) {
+  async updateArchive(id: string, spaceId: string, archive) {
     const [result] = await db
       .update(ArchiveSchema)
       .set({
@@ -67,19 +69,27 @@ export const pgArchiveRepository: ArchiveRepository = {
         description: archive.description,
         updatedAt: new Date(),
       })
-      .where(eq(ArchiveSchema.id, id))
+      .where(and(eq(ArchiveSchema.id, id), eq(ArchiveSchema.spaceId, spaceId)))
       .returning();
     return result as Archive;
   },
 
-  async deleteArchive(id) {
+  async deleteArchive(id: string, spaceId: string) {
     await db
       .delete(ArchiveItemSchema)
       .where(eq(ArchiveItemSchema.archiveId, id));
-    await db.delete(ArchiveSchema).where(eq(ArchiveSchema.id, id));
+    await db
+      .delete(ArchiveSchema)
+      .where(and(eq(ArchiveSchema.id, id), eq(ArchiveSchema.spaceId, spaceId)));
   },
 
-  async addItemToArchive(archiveId, itemId, userId) {
+  async addItemToArchive(archiveId: string, itemId: string, userId: string, spaceId: string) {
+    // Verify archive belongs to the space
+    const archive = await this.getArchiveById(archiveId, spaceId);
+    if (!archive) {
+      throw new Error("Archive not found or access denied");
+    }
+
     const [result] = await db
       .insert(ArchiveItemSchema)
       .values({
@@ -94,7 +104,13 @@ export const pgArchiveRepository: ArchiveRepository = {
     return result as ArchiveItem;
   },
 
-  async removeItemFromArchive(archiveId, itemId) {
+  async removeItemFromArchive(archiveId: string, itemId: string, spaceId: string) {
+    // Verify archive belongs to the space
+    const archive = await this.getArchiveById(archiveId, spaceId);
+    if (!archive) {
+      throw new Error("Archive not found or access denied");
+    }
+
     await db
       .delete(ArchiveItemSchema)
       .where(
@@ -105,7 +121,13 @@ export const pgArchiveRepository: ArchiveRepository = {
       );
   },
 
-  async getArchiveItems(archiveId) {
+  async getArchiveItems(archiveId: string, spaceId: string) {
+    // Verify archive belongs to the space
+    const archive = await this.getArchiveById(archiveId, spaceId);
+    if (!archive) {
+      throw new Error("Archive not found or access denied");
+    }
+
     const result = await db
       .select()
       .from(ArchiveItemSchema)
@@ -114,13 +136,14 @@ export const pgArchiveRepository: ArchiveRepository = {
     return result as ArchiveItem[];
   },
 
-  async getItemArchives(itemId, userId) {
+  async getItemArchives(itemId: string, userId: string, spaceId: string) {
     const result = await db
       .select({
         id: ArchiveSchema.id,
         name: ArchiveSchema.name,
         description: ArchiveSchema.description,
         userId: ArchiveSchema.userId,
+        spaceId: ArchiveSchema.spaceId,
         createdAt: ArchiveSchema.createdAt,
         updatedAt: ArchiveSchema.updatedAt,
       })
@@ -133,9 +156,33 @@ export const pgArchiveRepository: ArchiveRepository = {
         and(
           eq(ArchiveItemSchema.itemId, itemId),
           eq(ArchiveSchema.userId, userId),
+          eq(ArchiveSchema.spaceId, spaceId),
         ),
       )
       .orderBy(ArchiveSchema.name);
     return result as Archive[];
+  },
+
+  async checkAccess(archiveId: string, userId: string, spaceId: string) {
+    const [archive] = await db
+      .select({
+        userId: ArchiveSchema.userId,
+        spaceId: ArchiveSchema.spaceId,
+      })
+      .from(ArchiveSchema)
+      .where(and(eq(ArchiveSchema.id, archiveId), eq(ArchiveSchema.spaceId, spaceId)));
+    
+    if (!archive) {
+      return false;
+    }
+    
+    // User owns the archive
+    if (userId === archive.userId) {
+      return true;
+    }
+    
+    // For now, archives are private to the user who created them
+    // In the future, we could add visibility settings like agents/workflows
+    return false;
   },
 };

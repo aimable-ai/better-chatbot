@@ -5,6 +5,7 @@ import { BasicUser, UserZodSchema } from "app-types/user";
 import { userRepository } from "lib/db/repository";
 import { ActionState } from "lib/action-utils";
 import { headers } from "next/headers";
+import { getOrCreatePersonalSpace } from "lib/spaces/utils";
 
 export async function existsByEmailAction(email: string) {
   const exists = await userRepository.existsByEmail(email);
@@ -36,6 +37,17 @@ export async function signUpAction(data: {
       },
       headers: await headers(),
     });
+
+    // Create personal space for the new user
+    if (user?.id) {
+      try {
+        await getOrCreatePersonalSpace(user.id);
+      } catch (spaceError) {
+        // Don't fail the sign-up if space creation fails
+        console.error("Failed to create personal space during sign-up:", spaceError);
+      }
+    }
+
     return {
       user,
       success: true,

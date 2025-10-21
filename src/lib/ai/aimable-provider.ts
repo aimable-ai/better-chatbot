@@ -24,12 +24,8 @@ export function createAimableProvider({
       let rebuiltInit = init;
       try {
         const isPost = (init?.method || "POST").toUpperCase() === "POST";
-        const urlString =
-          typeof input === "string"
-            ? input
-            : (input as any)?.url || String(input);
-        const isAimableUrl =
-          typeof urlString === "string" && /aimable/i.test(urlString);
+        const urlString = typeof input === "string" ? input : (input as any)?.url || String(input);
+        const isAimableUrl = typeof urlString === "string" && /aimable/i.test(urlString);
         if (isPost && isAimableUrl && init?.body) {
           const originalBodyText =
             typeof init.body === "string"
@@ -72,6 +68,14 @@ export function createAimableProvider({
             ...(init.headers as any),
             "Content-Type": "application/json",
           } as Record<string, string>;
+          
+          // Remove duplicate content-type header if it exists (case-insensitive)
+          const existingContentType = Object.keys(headers).find(key => 
+            key.toLowerCase() === 'content-type' && key !== 'Content-Type'
+          );
+          if (existingContentType) {
+            delete headers[existingContentType];
+          }
 
           // Log outbound request only (no response)
           const url = urlString;

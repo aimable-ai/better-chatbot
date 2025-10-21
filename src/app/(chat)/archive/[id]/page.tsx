@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from "ui/card";
 import { MessageCircleXIcon } from "lucide-react";
 import { ArchiveActionsClient } from "@/app/(chat)/archive/[id]/archive-actions-client";
 import { Separator } from "ui/separator";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 import LightRays from "ui/light-rays";
 import Particles from "ui/particles";
@@ -28,6 +29,8 @@ interface ArchiveWithThreads {
   id: string;
   name: string;
   description: string | null;
+  userId: string;
+  spaceId: string;
   createdAt: Date;
   updatedAt: Date;
   threads: Array<{
@@ -44,9 +47,12 @@ async function getArchiveWithThreads(
   const session = await getSession();
   if (!session?.user?.id) return null;
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) return null;
+
   const [archive, archiveItems] = await Promise.all([
-    archiveRepository.getArchiveById(archiveId),
-    archiveRepository.getArchiveItems(archiveId),
+    archiveRepository.getArchiveById(archiveId, spaceId),
+    archiveRepository.getArchiveItems(archiveId, spaceId),
   ]);
 
   if (!archive || archive.userId !== session.user.id) return null;

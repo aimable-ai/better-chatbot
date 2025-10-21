@@ -2,6 +2,7 @@ import { archiveRepository } from "lib/db/repository";
 import { getSession } from "auth/server";
 import { z } from "zod";
 import { ArchiveUpdateSchema } from "app-types/archive";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 export async function GET(
   _request: Request,
@@ -13,10 +14,15 @@ export async function GET(
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   const { id } = await params;
 
   try {
-    const archive = await archiveRepository.getArchiveById(id);
+    const archive = await archiveRepository.getArchiveById(id, spaceId);
 
     if (!archive) {
       return Response.json({ error: "Archive not found" }, { status: 404 });
@@ -28,7 +34,7 @@ export async function GET(
     }
 
     // Get archive items
-    const items = await archiveRepository.getArchiveItems(id);
+    const items = await archiveRepository.getArchiveItems(id, spaceId);
 
     return Response.json({
       ...archive,
@@ -50,11 +56,16 @@ export async function PUT(
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   const { id } = await params;
 
   try {
     // Check if archive exists and user owns it
-    const existingArchive = await archiveRepository.getArchiveById(id);
+    const existingArchive = await archiveRepository.getArchiveById(id, spaceId);
 
     if (!existingArchive) {
       return Response.json({ error: "Archive not found" }, { status: 404 });
@@ -67,7 +78,7 @@ export async function PUT(
     const body = await request.json();
     const data = ArchiveUpdateSchema.parse(body);
 
-    const archive = await archiveRepository.updateArchive(id, {
+    const archive = await archiveRepository.updateArchive(id, spaceId, {
       name: data.name,
       description: data.description || null,
     });
@@ -96,11 +107,16 @@ export async function DELETE(
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { spaceId } = await validateUserAccessToCurrentSpace();
+  if (!spaceId) {
+    return new Response("Workspace required", { status: 400 });
+  }
+
   const { id } = await params;
 
   try {
     // Check if archive exists and user owns it
-    const existingArchive = await archiveRepository.getArchiveById(id);
+    const existingArchive = await archiveRepository.getArchiveById(id, spaceId);
 
     if (!existingArchive) {
       return Response.json({ error: "Archive not found" }, { status: 404 });
@@ -110,7 +126,7 @@ export async function DELETE(
       return new Response("Forbidden", { status: 403 });
     }
 
-    await archiveRepository.deleteArchive(id);
+    await archiveRepository.deleteArchive(id, spaceId);
 
     return Response.json({ success: true });
   } catch (error) {

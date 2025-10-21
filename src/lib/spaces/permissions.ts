@@ -89,3 +89,68 @@ export async function requireSpaceRole(
 
   return allowedRoles.includes(userRole);
 }
+
+/**
+ * Check if a user can access a personal space
+ * Rules:
+ * - Owner has full access
+ * - Users with explicit invitation can view (read-only)
+ * - Everyone else is blocked
+ */
+export async function canAccessPersonalSpace(
+  spaceId: string, 
+  userId: string, 
+  userRole: string
+): Promise<{ canAccess: boolean; isReadOnly: boolean }> {
+  try {
+    // Get space details
+    const space = await spacesRepository.getSpaceById(spaceId);
+    if (!space) {
+      return { canAccess: false, isReadOnly: false };
+    }
+
+    // If it's not a personal space, use regular access logic
+    if (!space.isPersonal) {
+      return { canAccess: true, isReadOnly: false };
+    }
+
+    // Check if user is the owner
+    const member = await spacesRepository.getMember(spaceId, userId);
+    if (member?.role === "owner") {
+      return { canAccess: true, isReadOnly: false };
+    }
+
+    // Check if user has explicit invitation (any role except owner)
+    if (member && (member.role as string) !== "owner") {
+      return { canAccess: true, isReadOnly: true };
+    }
+
+    // Everyone else is blocked
+    return { canAccess: false, isReadOnly: false };
+  } catch (error) {
+    console.error("Error checking personal space access:", error);
+    return { canAccess: false, isReadOnly: false };
+  }
+}
+
+/**
+ * Check if a user can modify a personal space
+ * Only owners can modify personal spaces
+ */
+export async function canModifyPersonalSpace(
+  spaceId: string, 
+  userId: string
+): Promise<boolean> {
+  try {
+    const space = await spacesRepository.getSpaceById(spaceId);
+    if (!space || !space.isPersonal) {
+      return true; // Regular spaces use normal logic
+    }
+
+    const member = await spacesRepository.getMember(spaceId, userId);
+    return member?.role === "owner";
+  } catch (error) {
+    console.error("Error checking personal space modification:", error);
+    return false;
+  }
+}
