@@ -211,6 +211,7 @@ function toMcpServerArray(
       name,
       config,
       userId: "file-based-user",
+      spaceId: "file-based-space",
       visibility: "private",
     }),
   );

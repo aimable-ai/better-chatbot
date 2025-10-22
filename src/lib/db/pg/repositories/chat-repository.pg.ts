@@ -30,11 +30,16 @@ export const pgChatRepository: ChatRepository = {
     await db.delete(ChatMessageSchema).where(eq(ChatMessageSchema.id, id));
   },
 
-  selectThread: async (id: string, spaceId: string): Promise<ChatThread | null> => {
+  selectThread: async (
+    id: string,
+    spaceId: string,
+  ): Promise<ChatThread | null> => {
     const [result] = await db
       .select()
       .from(ChatThreadSchema)
-      .where(and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)));
+      .where(
+        and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)),
+      );
     return result;
   },
 
@@ -46,7 +51,9 @@ export const pgChatRepository: ChatRepository = {
       .select()
       .from(ChatThreadSchema)
       .leftJoin(UserSchema, eq(ChatThreadSchema.userId, UserSchema.id))
-      .where(and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)));
+      .where(
+        and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)),
+      );
 
     if (!thread) {
       return null;
@@ -99,7 +106,12 @@ export const pgChatRepository: ChatRepository = {
         ChatMessageSchema,
         eq(ChatThreadSchema.id, ChatMessageSchema.threadId),
       )
-      .where(and(eq(ChatThreadSchema.userId, userId), eq(ChatThreadSchema.spaceId, spaceId)))
+      .where(
+        and(
+          eq(ChatThreadSchema.userId, userId),
+          eq(ChatThreadSchema.spaceId, spaceId),
+        ),
+      )
       .groupBy(ChatThreadSchema.id)
       .orderBy(desc(sql`last_message_at`));
 
@@ -127,16 +139,25 @@ export const pgChatRepository: ChatRepository = {
       .set({
         title: thread.title,
       })
-      .where(and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)))
+      .where(
+        and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)),
+      )
       .returning();
     return result;
   },
   upsertThread: async (
     thread: PartialBy<Omit<ChatThread, "createdAt">, "userId">,
   ): Promise<ChatThread> => {
+    if (!thread.userId) {
+      throw new Error("userId is required for upsertThread");
+    }
+
+    // Type assertion after runtime check - we know userId is defined
+    const threadWithUserId = thread as Omit<ChatThread, "createdAt">;
+
     const [result] = await db
       .insert(ChatThreadSchema)
-      .values(thread)
+      .values(threadWithUserId)
       .onConflictDoUpdate({
         target: [ChatThreadSchema.id],
         set: {
@@ -159,7 +180,9 @@ export const pgChatRepository: ChatRepository = {
     // 3. Delete the thread itself
     await db
       .delete(ChatThreadSchema)
-      .where(and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)));
+      .where(
+        and(eq(ChatThreadSchema.id, id), eq(ChatThreadSchema.spaceId, spaceId)),
+      );
   },
 
   insertMessage: async (
@@ -218,13 +241,23 @@ export const pgChatRepository: ChatRepository = {
     const threadIds = await db
       .select({ id: ChatThreadSchema.id })
       .from(ChatThreadSchema)
-      .where(and(eq(ChatThreadSchema.userId, userId), eq(ChatThreadSchema.spaceId, spaceId)));
+      .where(
+        and(
+          eq(ChatThreadSchema.userId, userId),
+          eq(ChatThreadSchema.spaceId, spaceId),
+        ),
+      );
     await Promise.all(
-      threadIds.map((threadId) => pgChatRepository.deleteThread(threadId.id, spaceId)),
+      threadIds.map((threadId) =>
+        pgChatRepository.deleteThread(threadId.id, spaceId),
+      ),
     );
   },
 
-  deleteUnarchivedThreads: async (userId: string, spaceId: string): Promise<void> => {
+  deleteUnarchivedThreads: async (
+    userId: string,
+    spaceId: string,
+  ): Promise<void> => {
     const unarchivedThreadIds = await db
       .select({ id: ChatThreadSchema.id })
       .from(ChatThreadSchema)
@@ -257,19 +290,28 @@ export const pgChatRepository: ChatRepository = {
     return result as ChatMessage[];
   },
 
-  checkAccess: async (threadId: string, userId: string, spaceId: string): Promise<boolean> => {
+  checkAccess: async (
+    threadId: string,
+    userId: string,
+    spaceId: string,
+  ): Promise<boolean> => {
     const [thread] = await db
       .select({
         userId: ChatThreadSchema.userId,
         spaceId: ChatThreadSchema.spaceId,
       })
       .from(ChatThreadSchema)
-      .where(and(eq(ChatThreadSchema.id, threadId), eq(ChatThreadSchema.spaceId, spaceId)));
-    
+      .where(
+        and(
+          eq(ChatThreadSchema.id, threadId),
+          eq(ChatThreadSchema.spaceId, spaceId),
+        ),
+      );
+
     if (!thread) {
       return false;
     }
-    
+
     // Chat threads are private to the user who created them
     // Only the creator can access their own threads, even within the same space
     return userId === thread.userId;

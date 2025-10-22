@@ -27,6 +27,8 @@ import {
   UserSchema,
   ChatMessageSchema,
   ChatThreadSchema,
+  SpaceSchema,
+  SpaceMemberSchema,
 } from "lib/db/pg/schema.pg";
 import { like, eq } from "drizzle-orm";
 
@@ -362,6 +364,32 @@ async function seedTestUsers() {
   }
 }
 
+// Helper function to create personal space for a user
+async function createPersonalSpaceForUser(userId: string) {
+  try {
+    // Create the personal space with isPersonal=true
+    const [personalSpace] = await db
+      .insert(SpaceSchema)
+      .values({
+        name: "My Personal Space",
+        isPersonal: true,
+      })
+      .returning();
+
+    // Add user as owner of the space
+    await db.insert(SpaceMemberSchema).values({
+      spaceId: personalSpace.id,
+      userId,
+      role: "owner",
+    });
+
+    return personalSpace;
+  } catch (error) {
+    console.error("Failed to create personal space for user:", error);
+    throw new Error("Failed to create personal space");
+  }
+}
+
 async function seedSampleUsageData(userIds: string[]) {
   try {
     for (const userId of userIds) {
@@ -370,11 +398,18 @@ async function seedSampleUsageData(userIds: string[]) {
         continue;
       }
 
+      // Create personal space for user first
+      const personalSpace = await createPersonalSpaceForUser(userId);
+      console.log(
+        `✅ Created personal space ${personalSpace.id} for user ${userId}`,
+      );
+
       // Create sample threads and messages for user (should have stats)
       const thread = await db
         .insert(ChatThreadSchema)
         .values({
           userId: userId,
+          spaceId: personalSpace.id,
           title: `Test AI Conversation ${userId}`,
         })
         .returning();

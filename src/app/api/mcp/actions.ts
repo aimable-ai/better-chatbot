@@ -147,9 +147,22 @@ export async function removeMcpClientAction(id: string) {
   }
 
   // Check if user has permission to delete this specific MCP server
-  const hasAccess = await mcpRepository.checkAccess(id, currentUser.id, spaceId);
+  const hasAccess = await mcpRepository.checkAccess(
+    id,
+    currentUser.id,
+    spaceId,
+  );
   if (!hasAccess) {
     throw new Error("You don't have permission to delete this MCP connection");
+  }
+
+  // Stricter management check: only the owner or admins can manage (delete/update)
+  const canManage = await canManageMCPServer(
+    mcpServer.userId,
+    mcpServer.visibility,
+  );
+  if (!canManage) {
+    throw new Error("You don't have permission to manage this MCP connection");
   }
 
   await mcpClientsManager.removeClient(id);

@@ -16,6 +16,7 @@ import { appStore } from "@/app/store";
 import { useShallow } from "zustand/shallow";
 import { ChatMention, ChatModel } from "app-types/chat";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { ToolModeDropdown } from "./tool-mode-dropdown";
 
 import { ToolSelectDropdown } from "./tool-select-dropdown";
@@ -743,7 +744,7 @@ export default function PromptInput({
         <div className="pointer-events-none fixed inset-0 z-[120] flex items-center justify-center">
           <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
           <div className="relative text-center px-6 flex flex-col items-center">
-            <img
+            <Image
               src={"/Aimable Icon.svg"}
               alt="Aimable"
               className="h-24 w-24 mb-2 animate-[fadeIn_0.25s_ease]"

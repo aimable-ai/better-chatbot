@@ -56,7 +56,7 @@ async function getArchiveWithThreads(
   let archiveItems;
   try {
     archiveItems = await archiveRepository.getArchiveItems(archiveId, spaceId);
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 
@@ -94,7 +94,7 @@ export default async function ArchivePage({
   let archive;
   try {
     archive = await getArchiveWithThreads(id);
-  } catch (error) {
+  } catch (_error) {
     redirect("/");
   }
 
@@ -143,6 +143,7 @@ export default async function ArchivePage({
                 name: archive.name,
                 description: archive.description,
                 userId: session.user.id,
+                spaceId: archive.spaceId,
                 createdAt: archive.createdAt,
                 updatedAt: archive.updatedAt,
               }}

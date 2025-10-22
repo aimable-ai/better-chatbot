@@ -8,6 +8,7 @@ import { chatRepository } from "lib/db/repository";
 import { getSession } from "auth/server";
 import { colorize } from "consola/utils";
 import { handleError } from "../shared.chat";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Title API: `),
@@ -32,6 +33,11 @@ export async function POST(request: Request) {
       return new Response("Unauthorized", { status: 401 });
     }
 
+    const { spaceId } = await validateUserAccessToCurrentSpace();
+    if (!spaceId) {
+      return new Response("Space required", { status: 400 });
+    }
+
     logger.info(
       `chatModel: ${chatModel?.provider}/${chatModel?.model}, threadId: ${threadId}`,
     );
@@ -52,6 +58,7 @@ export async function POST(request: Request) {
             id: threadId,
             title: ctx.text,
             userId: session.user.id,
+            spaceId,
           })
           .catch((err) => logger.error(err));
       },

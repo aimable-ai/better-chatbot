@@ -22,6 +22,7 @@ import { cn } from "lib/utils";
 import { Dialog, DialogContent, DialogTitle } from "ui/dialog";
 import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
+import { appStore } from "@/app/store";
 
 type SpaceItem = {
   id: string;
@@ -118,6 +119,19 @@ export function SpaceSelector() {
     // Update cookie
     document.cookie = `current-space-id=${id}; path=/;`;
     setCurrentId(id);
+
+    // Clear Zustand store state for space-scoped data
+    const { mutate: appStoreMutate } = appStore.getState();
+    appStoreMutate((prev) => ({
+      ...prev,
+      threadList: [],
+      agentList: [],
+      mcpList: [],
+      workflowToolList: [],
+      archiveList: [],
+      threadMentions: {},
+      currentThreadId: null,
+    }));
 
     // Invalidate space-scoped SWR caches so lists reload for the new space
     await Promise.all([

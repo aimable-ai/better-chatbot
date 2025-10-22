@@ -49,6 +49,7 @@ const defaultConfig = (): PartialBy<
   return {
     name: "",
     description: "",
+    spaceId: "",
     icon: {
       type: "emoji",
       value:

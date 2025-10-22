@@ -36,10 +36,17 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
     },
     async delete(id) {
       try {
-        await mcpRepository.deleteById(id);
+        // First get the server to find its spaceId
+        const server = await mcpRepository
+          .selectAll()
+          .then((servers) => servers.find((s) => s.id === id));
+        if (!server) {
+          throw new Error(`MCP server with id "${id}" not found`);
+        }
+        await mcpRepository.deleteById(id, server.spaceId);
       } catch (error) {
         logger.error(
-          `Failed to delete MCP config "${id}" from database:",`,
+          `Failed to delete MCP config "${id}" from database:`,
           error,
         );
         throw error;
@@ -47,15 +54,21 @@ export function createDbBasedMCPConfigsStorage(): MCPConfigStorage {
     },
     async has(id: string): Promise<boolean> {
       try {
-        const server = await mcpRepository.selectById(id);
-        return !!server;
+        const servers = await mcpRepository.selectAll();
+        return servers.some((s) => s.id === id);
       } catch (error) {
         logger.error(`Failed to check MCP config "${id}" in database:`, error);
         return false;
       }
     },
     async get(id) {
-      return mcpRepository.selectById(id);
+      try {
+        const servers = await mcpRepository.selectAll();
+        return servers.find((s) => s.id === id) ?? null;
+      } catch (error) {
+        logger.error(`Failed to get MCP config "${id}" from database:`, error);
+        return null;
+      }
     },
   };
 }

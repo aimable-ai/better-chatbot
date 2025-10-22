@@ -213,6 +213,7 @@ const handler = async (request: Request) => {
             loadWorkFlowTools({
               mentions,
               dataStream,
+              spaceId,
             }),
           )
           .orElse({});

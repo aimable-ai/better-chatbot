@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "lib/auth/auth-instance";
 import { spacesRepository } from "lib/spaces/repository";
-import { canArchiveSpace, canUnarchiveSpace } from "lib/spaces/permissions";
+import { canArchiveSpace } from "lib/spaces/permissions";
 import { SPACE_ERRORS } from "lib/spaces/config";
 
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ spaceId: string }> },
 ) {
   const session = await getSession();
@@ -35,10 +35,17 @@ export async function POST(
     );
   }
 
+  // Check repository-level access (space membership)
+  const member = await spacesRepository.getMember(spaceId, session.user.id);
+  if (!member) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Check permission-level access (role-based)
   const allowed = await canArchiveSpace(
     session.user.id,
     spaceId,
-    session.user.role,
+    session.user.role || "user",
   );
   if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

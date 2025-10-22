@@ -120,6 +120,7 @@ export class MCPClient {
       visibility: "private" as const,
       enabled: true,
       userId: "", // This will be filled by the manager
+      spaceId: "", // This will be filled by the manager
     };
   }
 

@@ -16,7 +16,7 @@ export async function GET(
   const allowed = await requireSpaceRole(
     session.user.id,
     spaceId,
-    session.user.role,
+    session.user.role || "user",
     ["owner", "admin", "curator"],
   );
   if (!allowed)
@@ -37,7 +37,7 @@ export async function POST(
   const allowed = await requireSpaceRole(
     session.user.id,
     spaceId,
-    session.user.role,
+    session.user.role || "user",
     ["owner", "admin", "curator"],
   );
   if (!allowed)

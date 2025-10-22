@@ -14,6 +14,7 @@ import { workflowRepository } from "lib/db/repository";
 import { safe } from "ts-safe";
 import { objectFlow } from "lib/utils";
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
+import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
 
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Agent Generate API: `),
@@ -35,6 +36,11 @@ export async function POST(request: Request) {
       return new Response("Unauthorized", { status: 401 });
     }
 
+    const { spaceId } = await validateUserAccessToCurrentSpace();
+    if (!spaceId) {
+      return new Response("Space required", { status: 400 });
+    }
+
     const toolNames = new Set<string>();
 
     await safe(loadAppDefaultTools)
@@ -54,7 +60,9 @@ export async function POST(request: Request) {
       })
       .unwrap();
 
-    await safe(workflowRepository.selectExecuteAbility(session.user.id))
+    await safe(
+      workflowRepository.selectExecuteAbility(session.user.id, spaceId),
+    )
       .ifOk((tools) => {
         tools.forEach((tool) => {
           toolNames.add(tool.name);

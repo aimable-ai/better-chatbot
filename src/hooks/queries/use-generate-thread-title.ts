@@ -25,6 +25,7 @@ export function useGenerateThreadTitle(option: {
                 id: option.threadId,
                 title,
                 userId: "",
+                spaceId: "",
                 createdAt: new Date(),
               },
               ...prev.threadList,

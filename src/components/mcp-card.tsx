@@ -50,6 +50,7 @@ export const MCPCard = memo(function MCPCard({
   visibility,
   enabled,
   userId,
+  spaceId,
   user,
   userName,
   userAvatar,
@@ -184,6 +185,7 @@ export const MCPCard = memo(function MCPCard({
                     visibility,
                     enabled,
                     userId,
+                    spaceId,
                   },
                 })
               }

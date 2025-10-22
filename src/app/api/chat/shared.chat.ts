@@ -225,12 +225,14 @@ export const workflowToVercelAITool = ({
   schema,
   dataStream,
   name,
+  spaceId,
 }: {
   id: string;
   name: string;
   description?: string;
   schema: ObjectJsonSchema7;
   dataStream: UIMessageStreamWriter;
+  spaceId: string;
 }): VercelAIWorkflowTool => {
   const toolName = name
     .replace(/[^a-zA-Z0-9\s]/g, "")
@@ -255,7 +257,7 @@ export const workflowToVercelAITool = ({
       });
       return safe(id)
         .map((id) =>
-          workflowRepository.selectStructureById(id, {
+          workflowRepository.selectStructureById(id, spaceId, {
             ignoreNote: true,
           }),
         )
@@ -376,12 +378,14 @@ export const workflowToVercelAITools = (
     schema: ObjectJsonSchema7;
   }[],
   dataStream: UIMessageStreamWriter,
+  spaceId: string,
 ) => {
   return workflows
     .map((v) =>
       workflowToVercelAITool({
         ...v,
         dataStream,
+        spaceId,
       }),
     )
     .reduce(
@@ -409,6 +413,7 @@ export const loadMcpTools = (opt?: {
 export const loadWorkFlowTools = (opt: {
   mentions?: ChatMention[];
   dataStream: UIMessageStreamWriter;
+  spaceId: string;
 }) =>
   safe(() =>
     opt?.mentions?.length
@@ -419,7 +424,7 @@ export const loadWorkFlowTools = (opt: {
         )
       : [],
   )
-    .map((tools) => workflowToVercelAITools(tools, opt.dataStream))
+    .map((tools) => workflowToVercelAITools(tools, opt.dataStream, opt.spaceId))
     .orElse({} as Record<string, VercelAIWorkflowTool>);
 
 export const loadAppDefaultTools = (opt?: {

@@ -32,10 +32,13 @@ function App() {
           "Session data structure:",
           JSON.stringify(sessionData, null, 2),
         );
-        console.log("Session user:", sessionData?.user);
-        console.log("Session data.user:", sessionData?.data?.user);
-        console.log("Session has user:", !!sessionData?.user);
-        console.log("Session has data.user:", !!sessionData?.data?.user);
+        console.log("Session user:", (sessionData as any)?.user);
+        console.log("Session data.user:", (sessionData as any)?.data?.user);
+        console.log("Session has user:", !!(sessionData as any)?.user);
+        console.log(
+          "Session has data.user:",
+          !!(sessionData as any)?.data?.user,
+        );
         setSession(sessionData);
       } catch (err) {
         console.error("Session check error:", err);

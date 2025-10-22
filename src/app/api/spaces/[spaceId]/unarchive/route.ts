@@ -5,7 +5,7 @@ import { canUnarchiveSpace } from "lib/spaces/permissions";
 import { SPACE_ERRORS } from "lib/spaces/config";
 
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ spaceId: string }> },
 ) {
   const session = await getSession();
@@ -31,7 +31,7 @@ export async function POST(
   const allowed = await canUnarchiveSpace(
     session.user.id,
     spaceId,
-    session.user.role,
+    session.user.role || "user",
   );
   if (!allowed) {
     const withinRetention =

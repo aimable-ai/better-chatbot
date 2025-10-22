@@ -15,7 +15,7 @@ export async function PATCH(
   const allowed = await requireSpaceRole(
     session.user.id,
     spaceId,
-    session.user.role,
+    session.user.role || "user",
     ["owner", "admin", "curator"],
   );
   if (!allowed)
@@ -39,7 +39,7 @@ export async function DELETE(
   const allowed = await requireSpaceRole(
     session.user.id,
     spaceId,
-    session.user.role,
+    session.user.role || "user",
     ["owner", "admin", "curator"],
   );
   if (!allowed)
