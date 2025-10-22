@@ -22,7 +22,7 @@ function App() {
         );
 
         const sessionPromise = authClient.getSession();
-        const sessionData = await Promise.race([
+        const sessionData: any = await Promise.race([
           sessionPromise,
           timeoutPromise,
         ]);
