@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { pgDb } from "lib/db/pg/db.pg";
 import { spacesRepository } from "./repository";
 import { SPACE_RETENTION_DAYS } from "./config";
 
@@ -12,7 +13,7 @@ vi.mock("lib/db/pg/db.pg", () => ({
   },
 }));
 
-const mockPgDb = vi.mocked(require("lib/db/pg/db.pg").pgDb);
+const mockPgDb = vi.mocked(pgDb);
 
 describe("Spaces Repository Lifecycle", () => {
   beforeEach(() => {

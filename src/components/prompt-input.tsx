@@ -108,6 +108,10 @@ export default function PromptInput({
       sourceId?: string; // Added sourceId for file operations
     }>
   >([]);
+  // Global file drag overlay state (covers chat area)
+  // Drag overlay visibility (initially hidden until a real file drag starts)
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
 
   useEffect(() => {
     onUploadedFilesChange?.(uploadedFiles);
@@ -301,6 +305,137 @@ export default function PromptInput({
     setUploadedFiles([]);
   };
 
+  // Reusable upload function (used by button and drag & drop)
+  const uploadFiles = useCallback((files: FileList | File[] | null) => {
+    if (!files || files.length === 0) return;
+    const filesArray = Array.from(files);
+    const newItems = filesArray.map((f) => ({
+      id: `${f.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: f.name,
+      type: f.type?.split("/").pop() || f.name.split(".").pop() || "file",
+      progress: 0,
+      status: "uploading" as const,
+    }));
+    setUploadedFiles((prev) => [...prev, ...newItems]);
+
+    filesArray.forEach((file, i) => {
+      const item = newItems[i];
+      const formData = new FormData();
+      formData.append("files", file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "https://demo.aimable.ai/api-proxy/v1/files/", true);
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return;
+        const percent = Math.round((evt.loaded / evt.total) * 100);
+        setUploadedFiles((prev) =>
+          prev.map((f) => (f.id === item.id ? { ...f, progress: percent } : f)),
+        );
+      };
+
+      xhr.onload = () => {
+        const ok = xhr.status >= 200 && xhr.status < 300;
+        if (ok) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            const filesProcessed = response.files_processed || {};
+            const sourceId = filesProcessed[file.name];
+            setUploadedFiles((prev) =>
+              prev.map((f) =>
+                f.id === item.id
+                  ? { ...f, progress: 100, status: "done", sourceId }
+                  : f,
+              ),
+            );
+          } catch {
+            setUploadedFiles((prev) =>
+              prev.map((f) =>
+                f.id === item.id ? { ...f, status: "error" } : f,
+              ),
+            );
+          }
+        } else {
+          setUploadedFiles((prev) =>
+            prev.map((f) => (f.id === item.id ? { ...f, status: "error" } : f)),
+          );
+        }
+      };
+
+      xhr.onerror = () => {
+        setUploadedFiles((prev) =>
+          prev.map((f) => (f.id === item.id ? { ...f, status: "error" } : f)),
+        );
+      };
+
+      xhr.send(formData);
+    });
+  }, []);
+
+  const handleSelectFiles = useCallback(() => {
+    const inputEl = document.createElement("input");
+    inputEl.type = "file";
+    inputEl.multiple = true;
+    inputEl.onchange = () => uploadFiles(inputEl.files);
+    inputEl.click();
+  }, [uploadFiles]);
+
+  // Global drag listeners (window-level) for better UX and correct leave handling
+  useEffect(() => {
+    const isFileDrag = (dt: DataTransfer | null) =>
+      !!dt && Array.from(dt.types).includes("Files");
+
+    const handleDragEnter = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
+      e.preventDefault();
+      dragCounterRef.current += 1;
+      if (!isDragging) setIsDragging(true);
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
+      e.preventDefault();
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
+      dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+      if (dragCounterRef.current === 0) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      if (!isFileDrag(e.dataTransfer)) return;
+      e.preventDefault();
+      const files = e.dataTransfer?.files;
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+      uploadFiles(files ?? null);
+    };
+
+    // Handle escape specifically for drag overlay (separate from mention clearing logic)
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isDragging) {
+        setIsDragging(false);
+        dragCounterRef.current = 0;
+      }
+    };
+
+    window.addEventListener("dragenter", handleDragEnter);
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("drop", handleDrop);
+    window.addEventListener("keydown", handleEsc);
+    return () => {
+      window.removeEventListener("dragenter", handleDragEnter);
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("drop", handleDrop);
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, [uploadFiles, isDragging]);
+
   // Handle ESC key to clear mentions
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -326,387 +461,302 @@ export default function PromptInput({
   }, [editorRef.current]);
 
   return (
-    <div className="max-w-3xl mx-auto fade-in animate-in">
-      <div className="z-10 mx-auto w-full max-w-3xl relative">
-        <fieldset className="flex w-full min-w-0 max-w-full flex-col px-4">
-          <div className="shadow-lg overflow-hidden rounded-4xl backdrop-blur-sm transition-all duration-200 bg-muted/60 relative flex w-full flex-col cursor-text z-10 items-stretch focus-within:bg-muted hover:bg-muted focus-within:ring-muted hover:ring-muted">
-            {mentions.length > 0 && (
-              <div className="bg-input rounded-b-sm rounded-t-3xl p-3 flex flex-col gap-4 mx-2 my-2">
-                {mentions.map((mention, i) => {
-                  return (
-                    <div key={i} className="flex items-center gap-2">
-                      {mention.type === "workflow" ||
-                      mention.type === "agent" ? (
-                        <Avatar
-                          className="size-6 p-1 ring ring-border rounded-full flex-shrink-0"
-                          style={mention.icon?.style}
-                        >
-                          <AvatarImage
-                            src={
-                              mention.icon?.value ||
-                              EMOJI_DATA[i % EMOJI_DATA.length]
-                            }
-                          />
-                          <AvatarFallback>{mention.name}</AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <Button className="size-6 flex items-center justify-center ring ring-border rounded-full flex-shrink-0 p-0.5">
-                          {mention.type == "mcpServer" ? (
-                            <MCPIcon className="size-3.5" />
-                          ) : (
-                            <DefaultToolIcon
-                              name={mention.name as DefaultToolName}
-                              className="size-3.5"
+    <>
+      <div className="max-w-3xl mx-auto fade-in animate-in">
+        <div className="z-10 mx-auto w-full max-w-3xl relative">
+          <fieldset className="flex w-full min-w-0 max-w-full flex-col px-4">
+            <div
+              className={`shadow-lg overflow-hidden rounded-4xl backdrop-blur-sm transition-all duration-200 bg-muted/60 relative flex w-full flex-col cursor-text z-10 items-stretch focus-within:bg-muted hover:bg-muted focus-within:ring-muted hover:ring-muted`}
+            >
+              {mentions.length > 0 && (
+                <div className="bg-input rounded-b-sm rounded-t-3xl p-3 flex flex-col gap-4 mx-2 my-2">
+                  {mentions.map((mention, i) => {
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        {mention.type === "workflow" ||
+                        mention.type === "agent" ? (
+                          <Avatar
+                            className="size-6 p-1 ring ring-border rounded-full flex-shrink-0"
+                            style={mention.icon?.style}
+                          >
+                            <AvatarImage
+                              src={
+                                mention.icon?.value ||
+                                EMOJI_DATA[i % EMOJI_DATA.length]
+                              }
                             />
-                          )}
-                        </Button>
-                      )}
+                            <AvatarFallback>{mention.name}</AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <Button className="size-6 flex items-center justify-center ring ring-border rounded-full flex-shrink-0 p-0.5">
+                            {mention.type == "mcpServer" ? (
+                              <MCPIcon className="size-3.5" />
+                            ) : (
+                              <DefaultToolIcon
+                                name={mention.name as DefaultToolName}
+                                className="size-3.5"
+                              />
+                            )}
+                          </Button>
+                        )}
 
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <span className="text-sm font-semibold truncate">
-                          {mention.name}
-                        </span>
-                        {mention.description ? (
-                          <span className="text-muted-foreground text-xs truncate">
-                            {mention.description}
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <span className="text-sm font-semibold truncate">
+                            {mention.name}
                           </span>
-                        ) : null}
-                      </div>
-                      <Button
-                        variant={"ghost"}
-                        size={"icon"}
-                        disabled={!threadId}
-                        className="rounded-full hover:bg-input! flex-shrink-0"
-                        onClick={() => {
-                          deleteMention(mention);
-                        }}
-                      >
-                        <XIcon />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {uploadedFiles.length > 0 && (
-              <div className="px-5 pt-2">
-                <div className="flex flex-wrap gap-2">
-                  {uploadedFiles.map((file, _idx) => (
-                    <div
-                      key={file.id}
-                      className="group relative flex items-center gap-2 pl-3 pr-2 py-2 rounded-md bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
-                      title={file.name}
-                    >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-500 text-white border border-blue-500 shadow-sm">
-                        <svg
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="20"
-                          height="20"
-                          fill="currentColor"
-                          className="remixicon text-white"
-                        >
-                          <path d="M21 9V20.9925C21 21.5511 20.5552 22 20.0066 22H3.9934C3.44495 22 3 21.556 3 21.0082V2.9918C3 2.45531 3.44694 2 3.99826 2H14V8C14 8.55228 14.4477 9 15 9H21ZM21 7H16V2.00318L21 7ZM8 7V9H11V7H8ZM8 11V13H16V11H8ZM8 15V17H16V15H8Z"></path>
-                        </svg>
-                      </div>
-                      <div className="flex flex-col leading-tight pr-1 w-32">
-                        <span className="text-xs font-medium text-neutral-800 truncate">
-                          {file.name}
-                        </span>
-                        <span className="text-[10px] text-neutral-500">
-                          {file.type || "file"}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Remove file"
-                        className="ml-1 text-neutral-500 hover:text-neutral-900 text-xl leading-none px-1 rounded transition-colors"
-                        onClick={async () => {
-                          try {
-                            // Call local DELETE endpoint with sourceId if available
-                            if (file.sourceId) {
-                              const response = await fetch("/api/files", {
-                                method: "DELETE",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                  source_ids: [file.sourceId],
-                                }),
-                              });
-
-                              if (!response.ok) {
-                                console.error(
-                                  "Delete failed",
-                                  await response.text(),
-                                );
-                              }
-                            }
-                          } catch (error) {
-                            console.error("Error deleting file:", error);
-                          } finally {
-                            // Remove from UI regardless of API success/failure
-                            setUploadedFiles((prev) =>
-                              prev.filter((f) => f.id !== file.id),
-                            );
-                          }
-                        }}
-                      >
-                        ×
-                      </button>
-                      <div className="absolute left-0 bottom-0 h-0.5 w-full bg-neutral-100">
-                        <div
-                          className={`h-full ${
-                            file.status === "error"
-                              ? "bg-red-500"
-                              : file.status === "done"
-                                ? "bg-green-500"
-                                : "bg-blue-500"
-                          } transition-[width] duration-200`}
-                          style={{
-                            width: `${Math.max(0, Math.min(100, file.progress))}%`,
+                          {mention.description ? (
+                            <span className="text-muted-foreground text-xs truncate">
+                              {mention.description}
+                            </span>
+                          ) : null}
+                        </div>
+                        <Button
+                          variant={"ghost"}
+                          size={"icon"}
+                          disabled={!threadId}
+                          className="rounded-full hover:bg-input! flex-shrink-0"
+                          onClick={() => {
+                            deleteMention(mention);
                           }}
-                        />
+                        >
+                          <XIcon />
+                        </Button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </div>
-            )}
-            <div className="flex flex-col gap-3.5 px-5 pt-2 pb-4">
-              <div className="relative min-h-[2rem]">
-                <ChatMentionInput
-                  input={input}
-                  onChange={setInput}
-                  onChangeMention={onChangeMention}
-                  onEnter={submit}
-                  placeholder={placeholder ?? t("placeholder")}
-                  ref={editorRef}
-                  disabledMention={disabledMention}
-                  onFocus={onFocus}
-                />
-              </div>
-              <div className="flex w-full items-center z-30">
-                <Button
-                  variant={"ghost"}
-                  size={"sm"}
-                  className="rounded-full hover:bg-input! p-2!"
-                  onClick={async () => {
-                    try {
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.multiple = true;
-
-                      input.onchange = async () => {
-                        const files = input.files;
-                        if (!files || files.length === 0) return;
-
-                        // Add to preview list and kick off uploads with progress
-                        const filesArray = Array.from(files);
-                        const newItems = filesArray.map((f) => ({
-                          id: `${f.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                          name: f.name,
-                          type:
-                            f.type?.split("/").pop() ||
-                            f.name.split(".").pop() ||
-                            "file",
-                          progress: 0,
-                          status: "uploading" as const,
-                        }));
-                        setUploadedFiles((prev) => [...prev, ...newItems]);
-
-                        // For reliable upload progress, use XMLHttpRequest per file
-                        filesArray.forEach((file, i) => {
-                          const item = newItems[i];
-                          const formData = new FormData();
-                          formData.append("files", file);
-
-                          const xhr = new XMLHttpRequest();
-                          xhr.open("POST", "/api/files", true);
-
-                          xhr.upload.onprogress = (evt) => {
-                            if (!evt.lengthComputable) return;
-                            const percent = Math.round(
-                              (evt.loaded / evt.total) * 100,
-                            );
-                            setUploadedFiles((prev) =>
-                              prev.map((f) =>
-                                f.id === item.id
-                                  ? { ...f, progress: percent }
-                                  : f,
-                              ),
-                            );
-                          };
-
-                          xhr.onload = () => {
-                            const ok = xhr.status >= 200 && xhr.status < 300;
-                            if (ok) {
-                              try {
-                                const response = JSON.parse(xhr.responseText);
-                                const filesProcessed =
-                                  response.files_processed || {};
-                                const sourceId = filesProcessed[file.name];
-
-                                setUploadedFiles((prev) =>
-                                  prev.map((f) =>
-                                    f.id === item.id
-                                      ? {
-                                          ...f,
-                                          progress: 100,
-                                          status: "done",
-                                          sourceId: sourceId,
-                                        }
-                                      : f,
-                                  ),
+              )}
+              {uploadedFiles.length > 0 && (
+                <div className="px-5 pt-2">
+                  <div className="flex flex-wrap gap-2">
+                    {uploadedFiles.map((file, _idx) => (
+                      <div
+                        key={file.id}
+                        className="group relative flex items-center gap-2 pl-3 pr-2 py-2 rounded-md bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                        title={file.name}
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-500 text-white border border-blue-500 shadow-sm">
+                          <svg
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                            className="remixicon text-white"
+                          >
+                            <path d="M21 9V20.9925C21 21.5511 20.5552 22 20.0066 22H3.9934C3.44495 22 3 21.556 3 21.0082V2.9918C3 2.45531 3.44694 2 3.99826 2H14V8C14 8.55228 14.4477 9 15 9H21ZM21 7H16V2.00318L21 7ZM8 7V9H11V7H8ZM8 11V13H16V11H8ZM8 15V17H16V15H8Z"></path>
+                          </svg>
+                        </div>
+                        <div className="flex flex-col leading-tight pr-1 w-32">
+                          <span className="text-xs font-medium text-neutral-800 truncate">
+                            {file.name}
+                          </span>
+                          <span className="text-[10px] text-neutral-500">
+                            {file.type || "file"}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label="Remove file"
+                          className="ml-1 text-neutral-500 hover:text-neutral-900 text-xl leading-none px-1 rounded transition-colors"
+                          onClick={async () => {
+                            try {
+                              // Call local DELETE endpoint with sourceId if available
+                              if (file.sourceId) {
+                                const response = await fetch(
+                                  "https://demo.aimable.ai/api-proxy/v1/files/",
+                                  {
+                                    method: "DELETE",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      source_ids: [file.sourceId],
+                                    }),
+                                  },
                                 );
-                              } catch (error) {
-                                console.error(
-                                  "Error parsing upload response:",
-                                  error,
-                                );
-                                setUploadedFiles((prev) =>
-                                  prev.map((f) =>
-                                    f.id === item.id
-                                      ? { ...f, status: "error" }
-                                      : f,
-                                  ),
-                                );
+
+                                if (!response.ok) {
+                                  console.error(
+                                    "Delete failed",
+                                    await response.text(),
+                                  );
+                                }
                               }
-                            } else {
+                            } catch (error) {
+                              console.error("Error deleting file:", error);
+                            } finally {
+                              // Remove from UI regardless of API success/failure
                               setUploadedFiles((prev) =>
-                                prev.map((f) =>
-                                  f.id === item.id
-                                    ? { ...f, status: "error" }
-                                    : f,
-                                ),
+                                prev.filter((f) => f.id !== file.id),
                               );
                             }
-                          };
-
-                          xhr.onerror = () => {
-                            setUploadedFiles((prev) =>
-                              prev.map((f) =>
-                                f.id === item.id
-                                  ? { ...f, status: "error" }
-                                  : f,
-                              ),
-                            );
-                          };
-
-                          xhr.send(formData);
-                        });
-                      };
-
-                      input.click();
-                    } catch (error) {
-                      console.error(error);
-                    }
-                  }}
-                >
-                  <PlusIcon />
-                </Button>
-
-                {!toolDisabled && (
-                  <>
-                    <ToolModeDropdown />
-                    <ToolSelectDropdown
-                      className="mx-1"
-                      align="start"
-                      side="top"
-                      onSelectWorkflow={onSelectWorkflow}
-                      onSelectAgent={onSelectAgent}
-                      mentions={mentions}
-                    />
-                  </>
-                )}
-
-                <div className="flex-1" />
-
-                <SelectModel onSelect={setChatModel} currentModel={chatModel}>
+                          }}
+                        >
+                          ×
+                        </button>
+                        <div className="absolute left-0 bottom-0 h-0.5 w-full bg-neutral-100">
+                          <div
+                            className={`h-full ${
+                              file.status === "error"
+                                ? "bg-red-500"
+                                : file.status === "done"
+                                  ? "bg-green-500"
+                                  : "bg-blue-500"
+                            } transition-[width] duration-200`}
+                            style={{
+                              width: `${Math.max(0, Math.min(100, file.progress))}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col gap-3.5 px-5 pt-2 pb-4">
+                <div className="relative min-h-[2rem]">
+                  <ChatMentionInput
+                    input={input}
+                    onChange={setInput}
+                    onChangeMention={onChangeMention}
+                    onEnter={submit}
+                    placeholder={placeholder ?? t("placeholder")}
+                    ref={editorRef}
+                    disabledMention={disabledMention}
+                    onFocus={onFocus}
+                  />
+                </div>
+                <div className="flex w-full items-center z-30">
                   <Button
                     variant={"ghost"}
                     size={"sm"}
-                    className="rounded-full group data-[state=open]:bg-input! hover:bg-input! mr-1"
-                    data-testid="model-selector-button"
+                    className="rounded-full hover:bg-input! p-2!"
+                    onClick={handleSelectFiles}
                   >
-                    {chatModel?.model ? (
-                      <>
-                        {chatModel.provider === "openai" ? (
-                          <OpenAIIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100" />
-                        ) : chatModel.provider === "xai" ? (
-                          <GrokIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100" />
-                        ) : chatModel.provider === "anthropic" ? (
-                          <ClaudeIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100" />
-                        ) : chatModel.provider === "google" ? (
-                          <GeminiIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100" />
-                        ) : null}
-                        <span
-                          className="text-foreground group-data-[state=open]:text-foreground  "
-                          data-testid="selected-model-name"
-                        >
-                          {chatModel.model}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">model</span>
-                    )}
-
-                    <ChevronDown className="size-3" />
+                    <PlusIcon />
                   </Button>
-                </SelectModel>
-                {!isLoading && !input.length && !voiceDisabled ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size={"sm"}
-                        onClick={() => {
-                          appStoreMutate((state) => ({
-                            voiceChat: {
-                              ...state.voiceChat,
-                              isOpen: true,
-                              agentId: undefined,
-                            },
-                          }));
-                        }}
-                        className="rounded-full p-2!"
-                      >
-                        <AudioWaveformIcon size={16} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("VoiceChat.title")}</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <div
-                    role="button"
-                    aria-disabled={hasUploading}
-                    onClick={() => {
-                      if (isLoading) {
-                        onStop();
-                      } else if (!hasUploading) {
-                        submit();
-                      }
-                    }}
-                    className={`fade-in animate-in rounded-full p-2 transition-all duration-200 ${
-                      hasUploading
-                        ? "opacity-50 cursor-not-allowed text-muted-foreground bg-secondary"
-                        : "cursor-pointer text-muted-foreground bg-secondary hover:bg-accent-foreground hover:text-accent"
-                    }`}
-                  >
-                    {isLoading ? (
-                      <Square
-                        size={16}
-                        className="fill-muted-foreground text-muted-foreground"
+
+                  {!toolDisabled && (
+                    <>
+                      <ToolModeDropdown />
+                      <ToolSelectDropdown
+                        className="mx-1"
+                        align="start"
+                        side="top"
+                        onSelectWorkflow={onSelectWorkflow}
+                        onSelectAgent={onSelectAgent}
+                        mentions={mentions}
                       />
-                    ) : (
-                      <CornerRightUp size={16} />
-                    )}
-                  </div>
-                )}
+                    </>
+                  )}
+
+                  <div className="flex-1" />
+
+                  <SelectModel onSelect={setChatModel} currentModel={chatModel}>
+                    <Button
+                      variant={"ghost"}
+                      size={"sm"}
+                      className="rounded-full group data-[state=open]:bg-input! hover:bg-input! mr-1"
+                      data-testid="model-selector-button"
+                    >
+                      {chatModel?.model ? (
+                        <>
+                          {chatModel.provider === "openai" ? (
+                            <OpenAIIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100" />
+                          ) : chatModel.provider === "xai" ? (
+                            <GrokIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100" />
+                          ) : chatModel.provider === "anthropic" ? (
+                            <ClaudeIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100" />
+                          ) : chatModel.provider === "google" ? (
+                            <GeminiIcon className="size-3 opacity-0 group-data-[state=open]:opacity-100 group-hover:opacity-100" />
+                          ) : null}
+                          <span
+                            className="text-foreground group-data-[state=open]:text-foreground  "
+                            data-testid="selected-model-name"
+                          >
+                            {chatModel.model}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">model</span>
+                      )}
+
+                      <ChevronDown className="size-3" />
+                    </Button>
+                  </SelectModel>
+                  {!isLoading && !input.length && !voiceDisabled ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size={"sm"}
+                          onClick={() => {
+                            appStoreMutate((state) => ({
+                              voiceChat: {
+                                ...state.voiceChat,
+                                isOpen: true,
+                                agentId: undefined,
+                              },
+                            }));
+                          }}
+                          className="rounded-full p-2!"
+                        >
+                          <AudioWaveformIcon size={16} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("VoiceChat.title")}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <div
+                      role="button"
+                      aria-disabled={hasUploading}
+                      onClick={() => {
+                        if (isLoading) {
+                          onStop();
+                        } else if (!hasUploading) {
+                          submit();
+                        }
+                      }}
+                      className={`fade-in animate-in rounded-full p-2 transition-all duration-200 ${
+                        hasUploading
+                          ? "opacity-50 cursor-not-allowed text-muted-foreground bg-secondary"
+                          : "cursor-pointer text-muted-foreground bg-secondary hover:bg-accent-foreground hover:text-accent"
+                      }`}
+                    >
+                      {isLoading ? (
+                        <Square
+                          size={16}
+                          className="fill-muted-foreground text-muted-foreground"
+                        />
+                      ) : (
+                        <CornerRightUp size={16} />
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </fieldset>
+          </fieldset>
+        </div>
       </div>
-    </div>
+      {isDragging && (
+        <div className="pointer-events-none fixed inset-0 z-[120] flex items-center justify-center">
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
+          <div className="relative text-center px-6 flex flex-col items-center">
+            <img
+              src={"/Aimable Icon.svg"}
+              alt="Aimable"
+              className="h-24 w-24 mb-2 animate-[fadeIn_0.25s_ease]"
+            />
+            <div className="text-3xl font-semibold tracking-tight text-neutral-900">
+              Add anything
+            </div>
+            <div className="mt-3 text-sm text-neutral-600 max-w-sm">
+              Drop any file here to add it to the conversation
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

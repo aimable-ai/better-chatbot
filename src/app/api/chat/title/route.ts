@@ -37,6 +37,10 @@ export async function POST(request: Request) {
     );
 
     const result = streamText({
+      headers: {
+        "X-Request-Type": "create-chat-title",
+        "X-Name": session.user.name || "unknown",
+      },
       model: customModelProvider.getModel(chatModel),
       system: CREATE_THREAD_TITLE_PROMPT,
       experimental_transform: smoothStream({ chunking: "word" }),

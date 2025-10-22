@@ -199,11 +199,11 @@
       "goodAfternoon": "Good afternoon, {name}",
       "goodEvening": "Good evening, {name}",
       "niceToSeeYouAgain": "Nice to see you again, {name}",
-      "whatAreYouWorkingOnToday": "What are you working on today? {name}",
+      "whatAreYouWorkingOnToday": "What are you working on today, {name}?",
       "letMeKnowWhenYoureReadyToBegin": "Let me know when you're ready to begin.",
       "whatAreYourThoughtsToday": "What are your thoughts today?",
       "whereWouldYouLikeToStart": "Where would you like to start?",
-      "whatAreYouThinking": "What are you thinking? {name}"
+      "whatAreYouThinking": "What are you thinking, {name}?"
     },
     "TemporaryChat": {
       "toggleTemporaryChat": "Toggle Temporary Chat",

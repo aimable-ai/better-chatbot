@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireActiveSpace } from "./permissions";
 import { SPACE_ERRORS } from "./config";
 
+type SpaceHandler = (
+  req: NextRequest,
+  context: Record<string, unknown>,
+) => Promise<Response> | Response;
+
 export async function protectSpaceWriteOperations(
   req: NextRequest,
   spaceId: string,
@@ -41,8 +46,11 @@ export function extractSpaceIdFromPath(pathname: string): string | null {
 }
 
 // Middleware wrapper for space write operations
-export function withSpaceProtection(handler: Function) {
-  return async (req: NextRequest, context: any) => {
+export function withSpaceProtection(handler: SpaceHandler): SpaceHandler {
+  return async (
+    req: NextRequest,
+    context: Record<string, unknown>,
+  ): Promise<Response> => {
     const spaceId = extractSpaceIdFromPath(req.nextUrl.pathname);
 
     if (spaceId) {

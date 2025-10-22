@@ -58,15 +58,34 @@ import { getSession } from "auth/server";
 import { colorize } from "consola/utils";
 import { generateUUID } from "lib/utils";
 
-const logger = globalLogger.withDefaults({
+import { after } from "next/server";
+import {
+  getActiveTraceId,
+  getActiveSpanId,
+  observe,
+  updateActiveObservation,
+  updateActiveTrace,
+} from "@langfuse/tracing";
+import { trace } from "@opentelemetry/api";
+import { langfuseSpanProcessor } from "../../../instrumentation";
+
+// Attach a base logger for this route; per-request we will further enrich with user context once session is resolved.
+const baseLogger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
 });
 
-export async function POST(request: Request) {
+const handler = async (request: Request) => {
   try {
     const json = await request.json();
 
     const session = await getSession();
+
+    // Enrich logger with user context (avoid PII beyond stable identifiers)
+    const logger =
+      baseLogger.withTag?.(
+        // If consola version exposes withTag use it, else fallback to baseLogger and prepend user info manually
+        "user",
+      ) || baseLogger;
 
     if (!session?.user.id) {
       return new Response("Unauthorized", { status: 401 });
@@ -86,6 +105,26 @@ export async function POST(request: Request) {
       allowedMcpServers,
       mentions = [],
     } = chatApiSchemaRequestBodySchema.parse(json);
+
+    // const _inputText = (() => {
+    //   const textPart = message.parts.find(
+    //     (part) => (part as any).type === "text",
+    //   );
+    //   const text = (textPart as any)?.text;
+    //   return typeof text === "string" ? text : undefined;
+    // })();
+
+    // updateActiveObservation({
+    //   input: inputText,
+    // });
+    updateActiveTrace({
+      metadata: {
+        userName: session.user.name,
+        userId: session.user.id,
+        userEmail: session.user.email,
+        // type: "chat-message",
+      },
+    });
 
     // Extract attachments and uploaded_files from message metadata
     const attachments = (message.metadata as any)?.attachments || [];
@@ -258,7 +297,15 @@ export async function POST(request: Request) {
         // Make original messages and explicit uploaded_files available to Aimable provider
         setAimableOriginals({ messages, uploaded_files });
 
+        const tracingHeaders: Record<string, string> = {};
+        const traceId = getActiveTraceId();
+        const spanId = getActiveSpanId();
+        if (traceId) tracingHeaders["X-Trace-Id"] = traceId;
+        if (spanId) tracingHeaders["X-Parent-Span-Id"] = spanId;
+        tracingHeaders["X-Request-Type"] = "chat-message";
+
         const result = streamText({
+          headers: tracingHeaders,
           model,
           system: systemPrompt,
           messages: convertToModelMessages(messages),
@@ -268,6 +315,29 @@ export async function POST(request: Request) {
           stopWhen: stepCountIs(10),
           toolChoice: "auto",
           abortSignal: request.signal,
+          experimental_telemetry: {
+            isEnabled: true,
+            metadata: {
+              langfuseUpdateParent: false, // Do not update the parent trace with execution results
+            },
+          },
+          onFinish: async (r) => {
+            try {
+              // r.content is provided by the AI SDK
+              updateActiveObservation({ output: (r as any).content });
+              updateActiveTrace({ output: (r as any).content });
+            } finally {
+              trace.getActiveSpan()?.end();
+            }
+          },
+          onError: async (err) => {
+            try {
+              updateActiveObservation({ output: err, level: "ERROR" as const });
+              updateActiveTrace({ output: err });
+            } finally {
+              trace.getActiveSpan()?.end();
+            }
+          },
         });
         result.consumeStream();
         dataStream.merge(
@@ -461,9 +531,18 @@ export async function POST(request: Request) {
     const violatedPoliciesJson = getLastViolatedPolicies();
     if (violatedPoliciesJson) clearLastViolatedPolicies();
 
+    // Schedule flush of telemetry after request finishes (serverless-safe)
+    after(async () => await langfuseSpanProcessor.forceFlush());
     return response;
   } catch (error: any) {
-    logger.error(error);
+    baseLogger.error(error);
+    // Ensure telemetry is flushed on error paths as well
+    after(async () => await langfuseSpanProcessor.forceFlush());
     return Response.json({ message: error.message }, { status: 500 });
   }
-}
+};
+
+export const POST = observe(handler, {
+  name: "handle-chat-message",
+  endOnExit: false,
+});

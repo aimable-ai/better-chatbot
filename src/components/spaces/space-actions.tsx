@@ -49,7 +49,7 @@ export function SpaceActions({
         const error = await response.json();
         toast.error(error.error || "Failed to archive workspace");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to archive workspace");
     } finally {
       setIsLoading(false);
@@ -70,7 +70,7 @@ export function SpaceActions({
         const error = await response.json();
         toast.error(error.error || "Failed to restore workspace");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to restore workspace");
     } finally {
       setIsLoading(false);
@@ -99,7 +99,7 @@ export function SpaceActions({
             <AlertDialogHeader>
               <AlertDialogTitle>Archive Workspace</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to archive "{spaceName}"?
+                Are you sure you want to archive `{spaceName}`?
                 <br />
                 <br />
                 <strong>This will:</strong>
@@ -135,7 +135,7 @@ export function SpaceActions({
             <AlertDialogHeader>
               <AlertDialogTitle>Restore Workspace</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to restore "{spaceName}"?
+                Are you sure you want to restore `{spaceName}`?
                 <br />
                 <br />
                 This will make the workspace active again and allow

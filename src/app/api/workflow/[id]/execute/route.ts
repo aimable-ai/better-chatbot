@@ -6,6 +6,7 @@ import logger from "logger";
 import { colorize } from "consola/utils";
 import { safeJSONParse, toAny } from "lib/utils";
 import { validateUserAccessToCurrentSpace } from "lib/spaces/current-space";
+import { withUserName } from "lib/ai/aimable-provider";
 
 export async function POST(
   request: Request,
@@ -17,13 +18,17 @@ export async function POST(
   if (!session) {
     return new Response("Unauthorized", { status: 401 });
   }
-  
+
   const { spaceId } = await validateUserAccessToCurrentSpace();
   if (!spaceId) {
     return new Response("Workspace required", { status: 400 });
   }
-  
-  const hasAccess = await workflowRepository.checkAccess(id, session.user.id, spaceId);
+
+  const hasAccess = await workflowRepository.checkAccess(
+    id,
+    session.user.id,
+    spaceId,
+  );
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -83,20 +88,22 @@ export async function POST(
         controller.close();
       });
 
-      // Start the workflow
-      app
-        .run(
-          { query },
-          {
-            disableHistory: true,
-            timeout: 1000 * 60 * 5,
-          },
-        )
-        .then((result) => {
-          if (!result.isOk) {
-            logger.error("Workflow execution error:", result.error);
-          }
-        });
+      // Start the workflow with user name context for provider headers
+      withUserName(session.user.name || "", () => {
+        app
+          .run(
+            { query },
+            {
+              disableHistory: true,
+              timeout: 1000 * 60 * 5,
+            },
+          )
+          .then((result) => {
+            if (!result.isOk) {
+              logger.error("Workflow execution error:", result.error);
+            }
+          });
+      });
     },
   });
 
