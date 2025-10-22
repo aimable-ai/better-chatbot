@@ -21,6 +21,7 @@ import {
 import { cn } from "lib/utils";
 import { Dialog, DialogContent, DialogTitle } from "ui/dialog";
 import { useRouter } from "next/navigation";
+import { useSWRConfig } from "swr";
 
 type SpaceItem = {
   id: string;
@@ -60,6 +61,7 @@ export function SpaceSelector() {
   const [isSwitching, setIsSwitching] = useState(false);
   const [switchingToSpace, setSwitchingToSpace] = useState<string | null>(null);
   const router = useRouter();
+  const { mutate } = useSWRConfig();
 
   useEffect(() => {
     let alive = true;
@@ -116,6 +118,40 @@ export function SpaceSelector() {
     // Update cookie
     document.cookie = `current-space-id=${id}; path=/;`;
     setCurrentId(id);
+
+    // Invalidate space-scoped SWR caches so lists reload for the new space
+    await Promise.all([
+      mutate(
+        (key) => typeof key === "string" && key.startsWith("/api/chat"),
+        undefined,
+        { revalidate: true },
+      ),
+      mutate(
+        (key) => typeof key === "string" && key.startsWith("/api/thread"),
+        undefined,
+        { revalidate: true },
+      ),
+      mutate(
+        (key) => typeof key === "string" && key.startsWith("/api/agent"),
+        undefined,
+        { revalidate: true },
+      ),
+      mutate(
+        (key) => typeof key === "string" && key.startsWith("/api/archive"),
+        undefined,
+        { revalidate: true },
+      ),
+      mutate(
+        (key) => typeof key === "string" && key.startsWith("/api/workflow"),
+        undefined,
+        { revalidate: true },
+      ),
+      mutate(
+        (key) => typeof key === "string" && key.startsWith("/api/mcp"),
+        undefined,
+        { revalidate: true },
+      ),
+    ]);
 
     // Navigate to home page without refreshing
     router.push("/");
