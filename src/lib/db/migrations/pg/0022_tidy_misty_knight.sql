@@ -1,5 +1,5 @@
 -- Add space_id to archive and backfill to Personal space per user
-ALTER TABLE "archive" ADD COLUMN "space_id" uuid;--> statement-breakpoint
+ALTER TABLE "archive" ADD COLUMN IF NOT EXISTS "space_id" uuid;--> statement-breakpoint
 
 -- Create Personal spaces for users missing one, and membership as owner
 -- First, create Personal spaces for users who don't have any active space
@@ -42,6 +42,7 @@ WHERE a.space_id IS NULL;
 
 -- Make column NOT NULL and add FK + index
 ALTER TABLE "archive" ALTER COLUMN "space_id" SET NOT NULL;--> statement-breakpoint
+ALTER TABLE "archive" DROP CONSTRAINT IF EXISTS "archive_space_id_space_id_fk";--> statement-breakpoint
 ALTER TABLE "archive" ADD CONSTRAINT "archive_space_id_space_id_fk" FOREIGN KEY ("space_id") REFERENCES "public"."space"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS archive_space_id_idx ON archive (space_id);--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS archive_space_user_idx ON archive (space_id, user_id);
