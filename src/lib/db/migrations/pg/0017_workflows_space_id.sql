@@ -42,6 +42,8 @@ WHERE w.space_id IS NULL;
 
 -- Make column NOT NULL and add FK + index
 ALTER TABLE "workflow" ALTER COLUMN "space_id" SET NOT NULL;
+-- Ensure FK can be recreated even if it exists from earlier migrations
+ALTER TABLE "workflow" DROP CONSTRAINT IF EXISTS "workflow_space_id_space_id_fk";
 ALTER TABLE "workflow"
   ADD CONSTRAINT workflow_space_id_space_id_fk
   FOREIGN KEY ("space_id") REFERENCES "public"."space"("id") ON DELETE cascade;
